@@ -55,6 +55,101 @@ app.get("/init-db", async (req, res) => {
   }
 });
 
+// Регистрация
+app.post("/register", async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({
+      ok: false,
+      error: "Email and password are required"
+    });
+  }
+
+  try {
+    const result = await pool.query(
+      `
+      INSERT INTO users (email, password)
+      VALUES ($1, $2)
+      RETURNING id, email, balance, created_at
+      `,
+      [email, password]
+    );
+
+    res.json({
+      ok: true,
+      user: result.rows[0]
+    });
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
+  }
+});
+
+// Логин
+app.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({
+      ok: false,
+      error: "Email and password are required"
+    });
+  }
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT id, email, balance, created_at
+      FROM users
+      WHERE email = $1 AND password = $2
+      LIMIT 1
+      `,
+      [email, password]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({
+        ok: false,
+        error: "Invalid credentials"
+      });
+    }
+
+    res.json({
+      ok: true,
+      user: result.rows[0]
+    });
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
+  }
+});
+
+// Список пользователей
+app.get("/users", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, email, balance, created_at
+      FROM users
+      ORDER BY id DESC
+    `);
+
+    res.json({
+      ok: true,
+      users: result.rows
+    });
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
+  }
+});
+
 // Запуск сервера
 const port = process.env.PORT || 3000;
 
