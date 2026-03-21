@@ -18,11 +18,15 @@ app.get("/", (req, res) => {
       </head>
       <body style="font-family: Arial; padding: 20px;">
         <h1>Betting app is running</h1>
-        <p><a href="/db-test">DB test</a></p>
-        <p><a href="/init-db">Init DB</a></p>
-        <p><a href="/test-register">Open register test page</a></p>
-        <p><a href="/test-login">Open login test page</a></p>
-        <p><a href="/users">View users</a></p>
+        <ul>
+          <li><a href="/db-test">DB test</a></li>
+          <li><a href="/init-db">Init DB</a></li>
+          <li><a href="/test-register">Register test</a></li>
+          <li><a href="/test-login">Login test</a></li>
+          <li><a href="/test-bet">Bet test</a></li>
+          <li><a href="/users">Users</a></li>
+          <li><a href="/bets">Bets</a></li>
+        </ul>
       </body>
     </html>
   `);
@@ -49,7 +53,7 @@ app.get("/db-test", async (req, res) => {
   }
 });
 
-// Создание таблицы users
+// Создание таблиц
 app.get("/init-db", async (req, res) => {
   try {
     await pool.query(`
@@ -58,6 +62,20 @@ app.get("/init-db", async (req, res) => {
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         balance NUMERIC DEFAULT 1000,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS bets (
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        match_name TEXT NOT NULL,
+        selection TEXT NOT NULL,
+        odds NUMERIC NOT NULL,
+        stake NUMERIC NOT NULL,
+        possible_win NUMERIC NOT NULL,
+        status TEXT DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
@@ -155,6 +173,60 @@ app.get("/test-login", (req, res) => {
   `);
 });
 
+// Тестовая страница ставки
+app.get("/test-bet", (req, res) => {
+  res.send(`
+    <html>
+      <head>
+        <title>Bet Test</title>
+      </head>
+      <body style="font-family: Arial; padding: 20px;">
+        <h1>Bet test</h1>
+
+        <form id="betForm" style="display:flex; flex-direction:column; gap:10px; max-width:320px;">
+          <input id="userId" type="number" placeholder="User ID" required />
+          <input id="matchName" type="text" placeholder="Match name" required />
+          <input id="selection" type="text" placeholder="Selection" required />
+          <input id="odds" type="number" step="0.01" placeholder="Odds" required />
+          <input id="stake" type="number" step="0.01" placeholder="Stake" required />
+          <button type="submit">Place bet</button>
+        </form>
+
+        <pre id="result" style="margin-top:20px; background:#f4f4f4; padding:10px; white-space:pre-wrap;"></pre>
+
+        <script>
+          document.getElementById("betForm").addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const userId = Number(document.getElementById("userId").value);
+            const matchName = document.getElementById("matchName").value;
+            const selection = document.getElementById("selection").value;
+            const odds = Number(document.getElementById("odds").value);
+            const stake = Number(document.getElementById("stake").value);
+
+            const response = await fetch("/place-bet", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                userId,
+                matchName,
+                selection,
+                odds,
+                stake
+              })
+            });
+
+            const data = await response.json();
+            document.getElementById("result").textContent = JSON.stringify(data, null, 2);
+          });
+        </script>
+      </body>
+    </html>
+  `);
+});
+
 // Регистрация
 app.post("/register", async (req, res) => {
   const { email, password } = req.body;
@@ -229,6 +301,80 @@ app.post("/login", async (req, res) => {
   }
 });
 
+// Поставить ставку
+app.post("/place-bet", async (req, res) => {
+  const { userId, matchName, selection, odds, stake } = req.body;
+
+  if (!userId || !matchName || !selection || !odds || !stake) {
+    return res.status(400).json({
+      ok: false,
+      error: "userId, matchName, selection, odds and stake are required"
+    });
+  }
+
+  try {
+    const userResult = await pool.query(
+      `SELECT id, email, balance FROM users WHERE id = $1 LIMIT 1`,
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        error: "User not found"
+      });
+    }
+
+    const user = userResult.rows[0];
+    const currentBalance = Number(user.balance);
+    const stakeValue = Number(stake);
+    const oddsValue = Number(odds);
+
+    if (stakeValue <= 0 || oddsValue <= 1) {
+      return res.status(400).json({
+        ok: false,
+        error: "Invalid stake or odds"
+      });
+    }
+
+    if (currentBalance < stakeValue) {
+      return res.status(400).json({
+        ok: false,
+        error: "Not enough balance"
+      });
+    }
+
+    const newBalance = currentBalance - stakeValue;
+    const possibleWin = stakeValue * oddsValue;
+
+    await pool.query(
+      `UPDATE users SET balance = $1 WHERE id = $2`,
+      [newBalance, userId]
+    );
+
+    const betResult = await pool.query(
+      `
+      INSERT INTO bets (user_id, match_name, selection, odds, stake, possible_win)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *
+      `,
+      [userId, matchName, selection, oddsValue, stakeValue, possibleWin]
+    );
+
+    res.json({
+      ok: true,
+      message: "Bet placed successfully",
+      bet: betResult.rows[0],
+      newBalance
+    });
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
+  }
+});
+
 // Список пользователей
 app.get("/users", async (req, res) => {
   try {
@@ -241,6 +387,70 @@ app.get("/users", async (req, res) => {
     res.json({
       ok: true,
       users: result.rows
+    });
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
+  }
+});
+
+// Список ставок
+app.get("/bets", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        bets.id,
+        bets.user_id,
+        users.email,
+        bets.match_name,
+        bets.selection,
+        bets.odds,
+        bets.stake,
+        bets.possible_win,
+        bets.status,
+        bets.created_at
+      FROM bets
+      JOIN users ON users.id = bets.user_id
+      ORDER BY bets.id DESC
+    `);
+
+    res.json({
+      ok: true,
+      bets: result.rows
+    });
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
+  }
+});
+
+// Баланс пользователя
+app.get("/user/:id", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `
+      SELECT id, email, balance, created_at
+      FROM users
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        error: "User not found"
+      });
+    }
+
+    res.json({
+      ok: true,
+      user: result.rows[0]
     });
   } catch (error) {
     res.status(500).json({
