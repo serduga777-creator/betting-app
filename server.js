@@ -99,7 +99,46 @@ app.get("/test-register", (req, res) => {
               },
               body: JSON.stringify({ email, password })
             });
+app.get("/test-login", (req, res) => {
+  res.send(`
+    <html>
+      <head>
+        <title>Login Test</title>
+      </head>
+      <body style="font-family: Arial; padding: 20px;">
+        <h1>Login test</h1>
 
+        <form id="loginForm" style="display:flex; flex-direction:column; gap:10px; max-width:320px;">
+          <input id="email" type="email" placeholder="Email" required />
+          <input id="password" type="password" placeholder="Password" required />
+          <button type="submit">Login</button>
+        </form>
+
+        <pre id="result" style="margin-top:20px; background:#f4f4f4; padding:10px;"></pre>
+
+        <script>
+          document.getElementById("loginForm").addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+
+            const response = await fetch("/login", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({ email, password })
+            });
+
+            const data = await response.json();
+            document.getElementById("result").textContent = JSON.stringify(data, null, 2);
+          });
+        </script>
+      </body>
+    </html>
+  `);
+});
             const data = await response.json();
             document.getElementById("result").textContent = JSON.stringify(data, null, 2);
           });
