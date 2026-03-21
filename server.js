@@ -1,3 +1,4 @@
+
 require("dotenv").config();
 
 const express = require("express");
@@ -18,12 +19,17 @@ app.get("/db-test", async (req, res) => {
     const result = await pool.query("SELECT NOW() as now");
     res.json({
       ok: true,
-      time: result.rows[0].now
+      time: result.rows[0].now,
+      hasDatabaseUrl: Boolean(process.env.DATABASE_URL)
     });
   } catch (error) {
     res.status(500).json({
       ok: false,
-      error: error.message
+      hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
+      errorMessage: error && error.message ? error.message : null,
+      errorCode: error && error.code ? error.code : null,
+      errorName: error && error.name ? error.name : null,
+      errorString: String(error)
     });
   }
 });
