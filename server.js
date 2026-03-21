@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 
 const express = require("express");
@@ -19,9 +18,11 @@ app.get("/", (req, res) => {
       </head>
       <body style="font-family: Arial; padding: 20px;">
         <h1>Betting app is running</h1>
-        <p><a href="/test-register">Open register test page</a></p>
-        <p><a href="/users">View users</a></p>
         <p><a href="/db-test">DB test</a></p>
+        <p><a href="/init-db">Init DB</a></p>
+        <p><a href="/test-register">Open register test page</a></p>
+        <p><a href="/test-login">Open login test page</a></p>
+        <p><a href="/users">View users</a></p>
       </body>
     </html>
   `);
@@ -40,7 +41,10 @@ app.get("/db-test", async (req, res) => {
     res.status(500).json({
       ok: false,
       hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
-      errorMessage: error?.message || null
+      errorMessage: error?.message || null,
+      errorCode: error?.code || null,
+      errorName: error?.name || null,
+      errorString: String(error)
     });
   }
 });
@@ -67,7 +71,7 @@ app.get("/init-db", async (req, res) => {
   }
 });
 
-// Тестовая HTML-страница регистрации
+// Тестовая страница регистрации
 app.get("/test-register", (req, res) => {
   res.send(`
     <html>
@@ -99,6 +103,17 @@ app.get("/test-register", (req, res) => {
               },
               body: JSON.stringify({ email, password })
             });
+
+            const data = await response.json();
+            document.getElementById("result").textContent = JSON.stringify(data, null, 2);
+          });
+        </script>
+      </body>
+    </html>
+  `);
+});
+
+// Тестовая страница логина
 app.get("/test-login", (req, res) => {
   res.send(`
     <html>
@@ -114,7 +129,7 @@ app.get("/test-login", (req, res) => {
           <button type="submit">Login</button>
         </form>
 
-        <pre id="result" style="margin-top:20px; background:#f4f4f4; padding:10px;"></pre>
+        <pre id="result" style="margin-top:20px; background:#f4f4f4; padding:10px; white-space:pre-wrap;"></pre>
 
         <script>
           document.getElementById("loginForm").addEventListener("submit", async function (e) {
@@ -131,14 +146,6 @@ app.get("/test-login", (req, res) => {
               body: JSON.stringify({ email, password })
             });
 
-            const data = await response.json();
-            document.getElementById("result").textContent = JSON.stringify(data, null, 2);
-          });
-        </script>
-      </body>
-    </html>
-  `);
-});
             const data = await response.json();
             document.getElementById("result").textContent = JSON.stringify(data, null, 2);
           });
