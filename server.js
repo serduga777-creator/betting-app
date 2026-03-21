@@ -12,7 +12,19 @@ app.use(express.json());
 
 // Главная
 app.get("/", (req, res) => {
-  res.send("Betting app is running");
+  res.send(`
+    <html>
+      <head>
+        <title>Betting App</title>
+      </head>
+      <body style="font-family: Arial; padding: 20px;">
+        <h1>Betting app is running</h1>
+        <p><a href="/test-register">Open register test page</a></p>
+        <p><a href="/users">View users</a></p>
+        <p><a href="/db-test">DB test</a></p>
+      </body>
+    </html>
+  `);
 });
 
 // Проверка базы
@@ -53,6 +65,48 @@ app.get("/init-db", async (req, res) => {
       error: error.message
     });
   }
+});
+
+// Тестовая HTML-страница регистрации
+app.get("/test-register", (req, res) => {
+  res.send(`
+    <html>
+      <head>
+        <title>Register Test</title>
+      </head>
+      <body style="font-family: Arial; padding: 20px;">
+        <h1>Register test</h1>
+
+        <form id="registerForm" style="display:flex; flex-direction:column; gap:10px; max-width:320px;">
+          <input id="email" type="email" placeholder="Email" required />
+          <input id="password" type="password" placeholder="Password" required />
+          <button type="submit">Register</button>
+        </form>
+
+        <pre id="result" style="margin-top:20px; background:#f4f4f4; padding:10px; white-space:pre-wrap;"></pre>
+
+        <script>
+          document.getElementById("registerForm").addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+
+            const response = await fetch("/register", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({ email, password })
+            });
+
+            const data = await response.json();
+            document.getElementById("result").textContent = JSON.stringify(data, null, 2);
+          });
+        </script>
+      </body>
+    </html>
+  `);
 });
 
 // Регистрация
