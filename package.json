@@ -1,19 +1,18 @@
-require("dotenv").config();
-
-const express = require("express");
-const cors = require("cors");
-
-const app = express();
-
-app.use(cors());
-app.use(express.json());
-
-app.get("/", (req, res) => {
-  res.send("🚀 Betting app is running");
-});
-
-const port = process.env.PORT || 3000;
-
-app.listen(port, () => {
-  console.log("Server started on port " + port);
-}); 
+{
+  "name": "betting-app",
+  "version": "1.0.0",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": "20.x"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
+  }
+}
