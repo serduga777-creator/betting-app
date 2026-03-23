@@ -3,6 +3,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const session = require("express-session");
+const bcrypt = require("bcryptjs");
 const pool = require("./db");
 
 const app = express();
@@ -54,7 +55,7 @@ async function getLoggedInUser(req) {
   }
 
   const result = await pool.query(
-    "SELECT * FROM users WHERE id = $1 LIMIT 1",
+    "SELECT id, email, balance, created_at FROM users WHERE id = $1 LIMIT 1",
     [req.session.userId]
   );
 
@@ -338,15 +339,7 @@ function pageTemplate(title, content) {
             color: #1d4ed8;
           }
 
-          .bet-row {
-            border: 1px solid #e5e7eb;
-            border-radius: 14px;
-            padding: 16px;
-            margin-bottom: 12px;
-            background: #fff;
-          }
-
-          .history-row {
+          .bet-row, .history-row {
             border: 1px solid #e5e7eb;
             border-radius: 14px;
             padding: 16px;
@@ -407,13 +400,8 @@ function pageTemplate(title, content) {
             line-height: 1.4;
           }
 
-          .odds-btn.secondary {
-            background: #0f766e;
-          }
-
-          .odds-btn.dark {
-            background: #4338ca;
-          }
+          .odds-btn.secondary { background: #0f766e; }
+          .odds-btn.dark { background: #4338ca; }
 
           .betslip {
             position: sticky;
@@ -453,39 +441,17 @@ function pageTemplate(title, content) {
           }
 
           @media (max-width: 900px) {
-            .matches-layout {
-              grid-template-columns: 1fr;
-            }
-
-            .betslip {
-              position: static;
-            }
+            .matches-layout { grid-template-columns: 1fr; }
+            .betslip { position: static; }
           }
 
           @media (max-width: 640px) {
-            .container {
-              padding: 16px;
-            }
-
-            h1 {
-              font-size: 30px;
-            }
-
-            .subtitle {
-              font-size: 16px;
-            }
-
-            .hero {
-              padding: 28px 20px;
-            }
-
-            .odds-row {
-              grid-template-columns: 1fr;
-            }
-
-            .topbar {
-              align-items: flex-start;
-            }
+            .container { padding: 16px; }
+            h1 { font-size: 30px; }
+            .subtitle { font-size: 16px; }
+            .hero { padding: 28px 20px; }
+            .odds-row { grid-template-columns: 1fr; }
+            .topbar { align-items: flex-start; }
           }
         </style>
       </head>
@@ -581,7 +547,6 @@ function requireLoginBlock(pageName) {
   `;
 }
 
-// Главная
 app.get("/", (req, res) => {
   res.send(pageTemplate("Betting App", `
     <section class="hero">
@@ -607,12 +572,12 @@ app.get("/", (req, res) => {
 
       <div class="card">
         <h3>Balance ledger</h3>
-        <p>Every balance movement is now stored and can be reviewed later.</p>
+        <p>Every balance movement is stored and shown in a separate history page.</p>
       </div>
 
       <div class="card">
-        <h3>Bet flow</h3>
-        <p>Stake writes a negative entry, and a winning settlement writes a positive entry.</p>
+        <h3>Password safety</h3>
+        <p>Passwords are now saved as hashes instead of plain text.</p>
       </div>
     </section>
 
@@ -622,7 +587,6 @@ app.get("/", (req, res) => {
   `));
 });
 
-// DB test
 app.get("/db-test", async (req, res) => {
   try {
     const result = await pool.query("SELECT NOW() as now");
@@ -632,13 +596,12 @@ app.get("/db-test", async (req, res) => {
   }
 });
 
-// Init DB
 app.get("/init-db", async (req, res) => {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
-        email TEXT,
+        email TEXT UNIQUE,
         password TEXT,
         balance INT DEFAULT 1000,
         created_at TIMESTAMP DEFAULT NOW()
@@ -678,7 +641,6 @@ app.get("/init-db", async (req, res) => {
   }
 });
 
-// Register API
 app.post("/register", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -688,7 +650,7 @@ app.post("/register", async (req, res) => {
     }
 
     const existing = await pool.query(
-      "SELECT * FROM users WHERE email = $1",
+      "SELECT id FROM users WHERE email = $1",
       [email]
     );
 
@@ -696,9 +658,11 @@ app.post("/register", async (req, res) => {
       return res.json({ ok: false, message: "User already exists" });
     }
 
+    const passwordHash = await bcrypt.hash(password, 10);
+
     const result = await pool.query(
-      "INSERT INTO users (email, password) VALUES ($1, $2) RETURNING *",
-      [email, password]
+      "INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id, email, balance, created_at",
+      [email, passwordHash]
     );
 
     res.json({ ok: true, user: result.rows[0] });
@@ -707,29 +671,42 @@ app.post("/register", async (req, res) => {
   }
 });
 
-// Login API
 app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
     const result = await pool.query(
-      "SELECT * FROM users WHERE email = $1 AND password = $2",
-      [email, password]
+      "SELECT * FROM users WHERE email = $1 LIMIT 1",
+      [email]
     );
 
     if (result.rows.length === 0) {
       return res.json({ ok: false, message: "Invalid credentials" });
     }
 
-    req.session.userId = result.rows[0].id;
+    const user = result.rows[0];
+    const isValid = await bcrypt.compare(password, user.password);
 
-    res.json({ ok: true, user: result.rows[0] });
+    if (!isValid) {
+      return res.json({ ok: false, message: "Invalid credentials" });
+    }
+
+    req.session.userId = user.id;
+
+    res.json({
+      ok: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        balance: user.balance,
+        created_at: user.created_at
+      }
+    });
   } catch (err) {
     res.json({ ok: false, message: err.message });
   }
 });
 
-// Me
 app.get("/me", async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
@@ -744,7 +721,6 @@ app.get("/me", async (req, res) => {
   }
 });
 
-// Place bet
 app.post("/place-bet", async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
@@ -806,7 +782,6 @@ app.post("/place-bet", async (req, res) => {
   }
 });
 
-// Settle bet
 app.post("/settle-bet", async (req, res) => {
   try {
     const { betId, status } = req.body;
@@ -874,17 +849,17 @@ app.post("/settle-bet", async (req, res) => {
   }
 });
 
-// Users
 app.get("/users", async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM users ORDER BY id DESC");
+    const result = await pool.query(
+      "SELECT id, email, balance, created_at FROM users ORDER BY id DESC"
+    );
     res.json({ ok: true, users: result.rows });
   } catch (err) {
     res.json({ ok: false, message: err.message });
   }
 });
 
-// Bets
 app.get("/bets", async (req, res) => {
   try {
     const result = await pool.query(`
@@ -900,7 +875,6 @@ app.get("/bets", async (req, res) => {
   }
 });
 
-// Balance history API
 app.get("/api/balance-history", async (req, res) => {
   try {
     const user = await getLoggedInUser(req);
@@ -923,7 +897,6 @@ app.get("/api/balance-history", async (req, res) => {
   }
 });
 
-// Dashboard
 app.get("/dashboard", async (req, res) => {
   const user = await getLoggedInUser(req);
 
@@ -1033,7 +1006,6 @@ app.get("/dashboard", async (req, res) => {
   `));
 });
 
-// Balance history page
 app.get("/balance-history", async (req, res) => {
   const user = await getLoggedInUser(req);
 
@@ -1093,7 +1065,6 @@ app.get("/balance-history", async (req, res) => {
   `));
 });
 
-// Register page
 app.get("/register", (req, res) => {
   res.send(pageTemplate("Register", `
     <div class="box">
@@ -1129,7 +1100,6 @@ app.get("/register", (req, res) => {
   `));
 });
 
-// Login page
 app.get("/login", (req, res) => {
   res.send(pageTemplate("Login", `
     <div class="box">
@@ -1165,7 +1135,6 @@ app.get("/login", (req, res) => {
   `));
 });
 
-// Matches page
 app.get("/matches", async (req, res) => {
   const user = await getLoggedInUser(req);
 
@@ -1287,7 +1256,6 @@ app.get("/matches", async (req, res) => {
   `));
 });
 
-// Admin
 app.get("/admin", (req, res) => {
   res.send(pageTemplate("Admin panel", `
     <div class="section">
@@ -1347,14 +1315,12 @@ app.get("/admin", (req, res) => {
   `));
 });
 
-// Logout
 app.post("/logout", (req, res) => {
   req.session.destroy(() => {
     res.json({ ok: true });
   });
 });
 
-// Compatibility routes
 app.get("/test-register", (req, res) => res.redirect("/register"));
 app.get("/test-login", (req, res) => res.redirect("/login"));
 app.get("/test-bet", (req, res) => res.redirect("/matches"));
