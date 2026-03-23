@@ -11,7 +11,7 @@ app.use(express.json());
 
 let currentUser = null;
 
-const matches = [
+const demoMatches = [
   {
     id: 1,
     team1: "Real Madrid",
@@ -37,12 +37,15 @@ const matches = [
 
 function pageTemplate(title, content) {
   return `
+    <!DOCTYPE html>
     <html>
       <head>
         <title>${title}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <style>
-          * { box-sizing: border-box; }
+          * {
+            box-sizing: border-box;
+          }
 
           body {
             margin: 0;
@@ -152,7 +155,9 @@ function pageTemplate(title, content) {
             line-height: 1.1;
           }
 
-          h2 { margin-top: 0; }
+          h2 {
+            margin-top: 0;
+          }
 
           .subtitle {
             font-size: 18px;
@@ -230,6 +235,10 @@ function pageTemplate(title, content) {
             box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
           }
 
+          .muted {
+            color: #64748b;
+          }
+
           input, select, button {
             width: 100%;
             margin: 8px 0;
@@ -253,14 +262,23 @@ function pageTemplate(title, content) {
             flex-wrap: wrap;
           }
 
-          .button-row button {
+          .button-row button,
+          .button-row a {
             width: auto;
             min-width: 110px;
           }
 
-          .win-btn { background: #16a34a; }
-          .lose-btn { background: #dc2626; }
-          .logout-btn { background: #475569; }
+          .win-btn {
+            background: #16a34a;
+          }
+
+          .lose-btn {
+            background: #dc2626;
+          }
+
+          .logout-btn {
+            background: #475569;
+          }
 
           .status-badge {
             display: inline-block;
@@ -271,15 +289,19 @@ function pageTemplate(title, content) {
             text-transform: uppercase;
           }
 
-          .status-pending { background: #fef3c7; color: #92400e; }
-          .status-win { background: #dcfce7; color: #166534; }
-          .status-lose { background: #fee2e2; color: #991b1b; }
+          .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+          }
 
-          .footer-note {
-            font-size: 14px;
-            color: #64748b;
-            text-align: center;
-            padding-bottom: 20px;
+          .status-win {
+            background: #dcfce7;
+            color: #166534;
+          }
+
+          .status-lose {
+            background: #fee2e2;
+            color: #991b1b;
           }
 
           .stats {
@@ -326,6 +348,7 @@ function pageTemplate(title, content) {
             border-radius: 18px;
             padding: 22px;
             box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+            margin-bottom: 16px;
           }
 
           .teams {
@@ -356,8 +379,13 @@ function pageTemplate(title, content) {
             line-height: 1.4;
           }
 
-          .odds-btn.secondary { background: #0f766e; }
-          .odds-btn.dark { background: #4338ca; }
+          .odds-btn.secondary {
+            background: #0f766e;
+          }
+
+          .odds-btn.dark {
+            background: #4338ca;
+          }
 
           .betslip {
             position: sticky;
@@ -374,19 +402,11 @@ function pageTemplate(title, content) {
             margin-bottom: 16px;
           }
 
-          .muted {
-            color: #64748b;
-          }
-
           .selected-box {
             background: #eff6ff;
             border-radius: 14px;
             padding: 14px;
             margin-bottom: 14px;
-          }
-
-          .result-box {
-            margin-top: 18px;
           }
 
           pre {
@@ -395,6 +415,13 @@ function pageTemplate(title, content) {
             white-space: pre-wrap;
             border-radius: 12px;
             overflow: auto;
+          }
+
+          .footer-note {
+            font-size: 14px;
+            color: #64748b;
+            text-align: center;
+            padding-bottom: 20px;
           }
 
           @media (max-width: 900px) {
@@ -408,11 +435,26 @@ function pageTemplate(title, content) {
           }
 
           @media (max-width: 640px) {
-            .container { padding: 16px; }
-            h1 { font-size: 30px; }
-            .subtitle { font-size: 16px; }
-            .hero { padding: 28px 20px; }
-            .odds-row { grid-template-columns: 1fr; }
+            .container {
+              padding: 16px;
+            }
+
+            h1 {
+              font-size: 30px;
+            }
+
+            .subtitle {
+              font-size: 16px;
+            }
+
+            .hero {
+              padding: 28px 20px;
+            }
+
+            .odds-row {
+              grid-template-columns: 1fr;
+            }
+
             .topbar {
               align-items: flex-start;
             }
@@ -445,6 +487,7 @@ function pageTemplate(title, content) {
             <a href="/users">Users</a>
             <a href="/bets">Bets</a>
           </div>
+
           ${content}
         </div>
 
@@ -482,9 +525,7 @@ function pageTemplate(title, content) {
             try {
               await fetch("/logout", { method: "POST" });
               await refreshTopbarUser();
-              if (window.location.pathname === "/dashboard") {
-                window.location.reload();
-              }
+              window.location.reload();
             } catch (e) {}
           }
 
@@ -495,6 +536,19 @@ function pageTemplate(title, content) {
         </script>
       </body>
     </html>
+  `;
+}
+
+function requireLoginBlock(pageName) {
+  return `
+    <div class="section">
+      <h1>${pageName}</h1>
+      <p class="muted">Please login first to access this page.</p>
+      <div class="button-row" style="margin-top:16px;">
+        <a class="btn btn-primary" href="/login">Go to login</a>
+        <a class="btn btn-secondary" href="/register">Create account</a>
+      </div>
+    </div>
   `;
 }
 
@@ -518,18 +572,18 @@ app.get("/", (req, res) => {
 
     <section class="grid">
       <div class="card">
-        <h3>Virtual balance</h3>
-        <p>Each new user gets a demo balance, so the whole experience works without real money.</p>
+        <h3>Protected pages</h3>
+        <p>Matches and dashboard require login and guide the user correctly.</p>
       </div>
 
       <div class="card">
-        <h3>Live user bar</h3>
-        <p>The header now shows current user status, email, and balance across the site.</p>
+        <h3>Live header</h3>
+        <p>The top bar shows current user status, email, and balance on every page.</p>
       </div>
 
       <div class="card">
-        <h3>Match cards + bet slip</h3>
-        <p>Select an outcome, enter your stake, and instantly see your possible win.</p>
+        <h3>Bet flow</h3>
+        <p>Login, choose a match, enter stake, place bet, then track it in dashboard.</p>
       </div>
     </section>
 
@@ -551,206 +605,267 @@ app.get("/db-test", async (req, res) => {
 
 // Init DB
 app.get("/init-db", async (req, res) => {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      email TEXT,
-      password TEXT,
-      balance INT DEFAULT 1000,
-      created_at TIMESTAMP DEFAULT NOW()
-    );
-  `);
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email TEXT,
+        password TEXT,
+        balance INT DEFAULT 1000,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
 
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS bets (
-      id SERIAL PRIMARY KEY,
-      user_id INT,
-      match_name TEXT,
-      selection TEXT,
-      odds FLOAT,
-      stake INT,
-      possible_win INT,
-      status TEXT DEFAULT 'pending',
-      created_at TIMESTAMP DEFAULT NOW()
-    );
-  `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS bets (
+        id SERIAL PRIMARY KEY,
+        user_id INT,
+        match_name TEXT,
+        selection TEXT,
+        odds FLOAT,
+        stake INT,
+        possible_win INT,
+        status TEXT DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
 
-  res.json({ ok: true });
+    res.json({ ok: true });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
 });
 
 // Register API
 app.post("/register", async (req, res) => {
-  const { email, password } = req.body;
+  try {
+    const { email, password } = req.body;
 
-  const result = await pool.query(
-    "INSERT INTO users (email, password) VALUES ($1,$2) RETURNING *",
-    [email, password]
-  );
+    if (!email || !password) {
+      return res.json({ ok: false, message: "Email and password required" });
+    }
 
-  res.json({ ok: true, user: result.rows[0] });
+    const existing = await pool.query(
+      "SELECT * FROM users WHERE email=$1",
+      [email]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.json({ ok: false, message: "User already exists" });
+    }
+
+    const result = await pool.query(
+      "INSERT INTO users (email, password) VALUES ($1,$2) RETURNING *",
+      [email, password]
+    );
+
+    res.json({ ok: true, user: result.rows[0] });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
 });
 
 // Login API
 app.post("/login", async (req, res) => {
-  const { email, password } = req.body;
+  try {
+    const { email, password } = req.body;
 
-  const result = await pool.query(
-    "SELECT * FROM users WHERE email=$1 AND password=$2",
-    [email, password]
-  );
+    const result = await pool.query(
+      "SELECT * FROM users WHERE email=$1 AND password=$2",
+      [email, password]
+    );
 
-  if (result.rows.length === 0) {
-    return res.json({ ok: false, message: "Invalid credentials" });
+    if (result.rows.length === 0) {
+      return res.json({ ok: false, message: "Invalid credentials" });
+    }
+
+    currentUser = result.rows[0];
+    res.json({ ok: true, user: currentUser });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
   }
-
-  currentUser = result.rows[0];
-  res.json({ ok: true, user: currentUser });
 });
 
 // Me
 app.get("/me", async (req, res) => {
-  if (!currentUser) return res.json({ ok: false, message: "Not logged in" });
+  try {
+    if (!currentUser) {
+      return res.json({ ok: false, message: "Not logged in" });
+    }
 
-  const userResult = await pool.query(
-    "SELECT * FROM users WHERE id=$1",
-    [currentUser.id]
-  );
+    const userResult = await pool.query(
+      "SELECT * FROM users WHERE id=$1",
+      [currentUser.id]
+    );
 
-  currentUser = userResult.rows[0];
-  res.json({ ok: true, user: currentUser });
+    if (userResult.rows.length === 0) {
+      currentUser = null;
+      return res.json({ ok: false, message: "Not logged in" });
+    }
+
+    currentUser = userResult.rows[0];
+    res.json({ ok: true, user: currentUser });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
 });
 
 // Place bet
 app.post("/place-bet", async (req, res) => {
-  if (!currentUser) {
-    return res.json({ ok: false, message: "Not logged in" });
+  try {
+    if (!currentUser) {
+      return res.json({ ok: false, message: "Not logged in" });
+    }
+
+    const { match_name, selection, odds, stake } = req.body;
+
+    if (!match_name || !selection || !odds || !stake) {
+      return res.json({ ok: false, message: "Missing bet data" });
+    }
+
+    if (Number(stake) <= 0) {
+      return res.json({ ok: false, message: "Invalid stake" });
+    }
+
+    const freshUser = await pool.query(
+      "SELECT * FROM users WHERE id=$1",
+      [currentUser.id]
+    );
+
+    if (freshUser.rows.length === 0) {
+      currentUser = null;
+      return res.json({ ok: false, message: "User not found" });
+    }
+
+    const user = freshUser.rows[0];
+
+    if (Number(user.balance) < Number(stake)) {
+      return res.json({ ok: false, message: "Not enough balance" });
+    }
+
+    const possible_win = Number(odds) * Number(stake);
+
+    await pool.query(
+      "UPDATE users SET balance = balance - $1 WHERE id=$2",
+      [stake, currentUser.id]
+    );
+
+    const result = await pool.query(
+      `INSERT INTO bets (user_id, match_name, selection, odds, stake, possible_win)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [currentUser.id, match_name, selection, odds, stake, possible_win]
+    );
+
+    const updatedUser = await pool.query(
+      "SELECT * FROM users WHERE id=$1",
+      [currentUser.id]
+    );
+
+    currentUser = updatedUser.rows[0];
+
+    res.json({
+      ok: true,
+      bet: result.rows[0],
+      newBalance: currentUser.balance
+    });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
   }
-
-  const { match_name, selection, odds, stake } = req.body;
-
-  if (!stake || Number(stake) <= 0) {
-    return res.json({ ok: false, message: "Invalid stake" });
-  }
-
-  const freshUser = await pool.query(
-    "SELECT * FROM users WHERE id=$1",
-    [currentUser.id]
-  );
-
-  if (!freshUser.rows.length) {
-    return res.json({ ok: false, message: "User not found" });
-  }
-
-  const user = freshUser.rows[0];
-
-  if (Number(user.balance) < Number(stake)) {
-    return res.json({ ok: false, message: "Not enough balance" });
-  }
-
-  const possible_win = Number(odds) * Number(stake);
-
-  await pool.query(
-    "UPDATE users SET balance = balance - $1 WHERE id=$2",
-    [stake, currentUser.id]
-  );
-
-  const result = await pool.query(
-    `INSERT INTO bets (user_id, match_name, selection, odds, stake, possible_win)
-     VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-    [currentUser.id, match_name, selection, odds, stake, possible_win]
-  );
-
-  const updatedUser = await pool.query(
-    "SELECT * FROM users WHERE id=$1",
-    [currentUser.id]
-  );
-
-  currentUser = updatedUser.rows[0];
-
-  res.json({
-    ok: true,
-    bet: result.rows[0],
-    newBalance: currentUser.balance
-  });
 });
 
 // Settle bet
 app.post("/settle-bet", async (req, res) => {
-  const { betId, status } = req.body;
+  try {
+    const { betId, status } = req.body;
 
-  const betResult = await pool.query(
-    "SELECT * FROM bets WHERE id=$1",
-    [betId]
-  );
+    const betResult = await pool.query(
+      "SELECT * FROM bets WHERE id=$1",
+      [betId]
+    );
 
-  const bet = betResult.rows[0];
+    const bet = betResult.rows[0];
 
-  if (!bet) {
-    return res.json({ ok: false, message: "Bet not found" });
-  }
+    if (!bet) {
+      return res.json({ ok: false, message: "Bet not found" });
+    }
 
-  if (bet.status !== "pending") {
-    return res.json({ ok: false, message: "Bet already settled" });
-  }
+    if (bet.status !== "pending") {
+      return res.json({ ok: false, message: "Bet already settled" });
+    }
 
-  await pool.query(
-    "UPDATE bets SET status=$1 WHERE id=$2",
-    [status, betId]
-  );
-
-  let newBalance = null;
-
-  if (status === "win") {
     await pool.query(
-      "UPDATE users SET balance = balance + $1 WHERE id=$2",
-      [bet.possible_win, bet.user_id]
+      "UPDATE bets SET status=$1 WHERE id=$2",
+      [status, betId]
     );
 
-    const userResult = await pool.query(
-      "SELECT balance FROM users WHERE id=$1",
-      [bet.user_id]
-    );
-    newBalance = userResult.rows[0].balance;
+    let newBalance = null;
+
+    if (status === "win") {
+      await pool.query(
+        "UPDATE users SET balance = balance + $1 WHERE id=$2",
+        [bet.possible_win, bet.user_id]
+      );
+
+      const userResult = await pool.query(
+        "SELECT balance FROM users WHERE id=$1",
+        [bet.user_id]
+      );
+      newBalance = userResult.rows[0].balance;
+    }
+
+    if (status === "lose") {
+      const userResult = await pool.query(
+        "SELECT balance FROM users WHERE id=$1",
+        [bet.user_id]
+      );
+      newBalance = userResult.rows[0].balance;
+    }
+
+    if (currentUser && Number(currentUser.id) === Number(bet.user_id)) {
+      const updatedCurrentUser = await pool.query(
+        "SELECT * FROM users WHERE id=$1",
+        [currentUser.id]
+      );
+      currentUser = updatedCurrentUser.rows[0];
+    }
+
+    res.json({ ok: true, message: "Bet settled", newBalance });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
   }
-
-  if (status === "lose") {
-    const userResult = await pool.query(
-      "SELECT balance FROM users WHERE id=$1",
-      [bet.user_id]
-    );
-    newBalance = userResult.rows[0].balance;
-  }
-
-  if (currentUser && Number(currentUser.id) === Number(bet.user_id)) {
-    const updatedCurrentUser = await pool.query(
-      "SELECT * FROM users WHERE id=$1",
-      [currentUser.id]
-    );
-    currentUser = updatedCurrentUser.rows[0];
-  }
-
-  res.json({ ok: true, message: "Bet settled", newBalance });
 });
 
 // Users
 app.get("/users", async (req, res) => {
-  const result = await pool.query("SELECT * FROM users ORDER BY id DESC");
-  res.json({ ok: true, users: result.rows });
+  try {
+    const result = await pool.query("SELECT * FROM users ORDER BY id DESC");
+    res.json({ ok: true, users: result.rows });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
 });
 
 // Bets
 app.get("/bets", async (req, res) => {
-  const result = await pool.query(`
-    SELECT bets.*, users.email
-    FROM bets
-    LEFT JOIN users ON users.id = bets.user_id
-    ORDER BY bets.id DESC
-  `);
-  res.json({ ok: true, bets: result.rows });
+  try {
+    const result = await pool.query(`
+      SELECT bets.*, users.email
+      FROM bets
+      LEFT JOIN users ON users.id = bets.user_id
+      ORDER BY bets.id DESC
+    `);
+    res.json({ ok: true, bets: result.rows });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
 });
 
 // Dashboard
 app.get("/dashboard", (req, res) => {
+  if (!currentUser) {
+    return res.send(pageTemplate("Dashboard", requireLoginBlock("Dashboard")));
+  }
+
   res.send(pageTemplate("Dashboard", `
     <div class="section">
       <h1>My dashboard</h1>
@@ -776,8 +891,8 @@ app.get("/dashboard", (req, res) => {
             <div class="section">
               <h2>Not logged in</h2>
               <p>Please login first.</p>
-              <div class="quick-links">
-                <a href="/login">Go to login</a>
+              <div class="button-row">
+                <a class="btn btn-primary" href="/login">Go to login</a>
               </div>
             </div>
           \`;
@@ -787,7 +902,10 @@ app.get("/dashboard", (req, res) => {
         const betsRes = await fetch("/bets");
         const betsData = await betsRes.json();
 
-        const myBets = (betsData.bets || []).filter(bet => Number(bet.user_id) === Number(meData.user.id));
+        const myBets = (betsData.bets || []).filter(
+          bet => Number(bet.user_id) === Number(meData.user.id)
+        );
+
         const pendingCount = myBets.filter(b => b.status === "pending").length;
         const winCount = myBets.filter(b => b.status === "win").length;
         const loseCount = myBets.filter(b => b.status === "lose").length;
@@ -842,18 +960,12 @@ app.get("/dashboard", (req, res) => {
 
       async function logoutDashboard() {
         await fetch("/logout", { method: "POST" });
-        loadDashboard();
+        window.location.reload();
       }
 
       loadDashboard();
     </script>
   `));
-});
-
-// Logout
-app.post("/logout", (req, res) => {
-  currentUser = null;
-  res.json({ ok: true });
 });
 
 // Register page
@@ -864,12 +976,12 @@ app.get("/register", (req, res) => {
       <p class="muted">Start with a virtual balance and test the betting flow.</p>
       <input id="email" placeholder="Email" />
       <input id="password" placeholder="Password" type="password" />
-      <button onclick="reg()">Register</button>
+      <button onclick="registerUser()">Register</button>
       <pre id="out"></pre>
     </div>
 
     <script>
-      async function reg() {
+      async function registerUser() {
         const res = await fetch("/register", {
           method: "POST",
           headers: {"Content-Type":"application/json"},
@@ -930,6 +1042,10 @@ app.get("/login", (req, res) => {
 
 // Matches page
 app.get("/matches", (req, res) => {
+  if (!currentUser) {
+    return res.send(pageTemplate("Matches", requireLoginBlock("Matches")));
+  }
+
   res.send(pageTemplate("Matches", `
     <div class="section">
       <h1>Matches</h1>
@@ -938,8 +1054,8 @@ app.get("/matches", (req, res) => {
 
     <div class="matches-layout">
       <div>
-        ${matches.map(match => `
-          <div class="match-card" style="margin-bottom:16px;">
+        ${demoMatches.map(match => `
+          <div class="match-card">
             <div class="teams">${match.team1} vs ${match.team2}</div>
             <div class="match-sub">${match.league}</div>
 
@@ -947,9 +1063,11 @@ app.get("/matches", (req, res) => {
               <button class="odds-btn" onclick="selectBet(${match.id}, 'Home', ${match.odds.home})">
                 ${match.team1}<br>${match.odds.home}
               </button>
+
               <button class="odds-btn secondary" onclick="selectBet(${match.id}, 'Draw', ${match.odds.draw})">
                 Draw<br>${match.odds.draw}
               </button>
+
               <button class="odds-btn dark" onclick="selectBet(${match.id}, 'Away', ${match.odds.away})">
                 ${match.team2}<br>${match.odds.away}
               </button>
@@ -979,14 +1097,14 @@ app.get("/matches", (req, res) => {
           <button onclick="placeSlipBet()">Place bet</button>
         </div>
 
-        <div class="result-box">
+        <div style="margin-top:18px;">
           <pre id="out"></pre>
         </div>
       </div>
     </div>
 
     <script>
-      const matches = ${JSON.stringify(matches)};
+      const matches = ${JSON.stringify(demoMatches)};
       let selectedBet = null;
 
       function selectBet(matchId, selection, odds) {
@@ -1014,6 +1132,7 @@ app.get("/matches", (req, res) => {
 
       function updatePossibleWin() {
         if (!selectedBet) return;
+
         const stake = Number(document.getElementById("slipStake").value || 0);
         const win = stake * selectedBet.odds;
         document.getElementById("possibleWin").textContent = String(win || 0);
@@ -1042,7 +1161,7 @@ app.get("/matches", (req, res) => {
   `));
 });
 
-// Admin page
+// Admin
 app.get("/admin", (req, res) => {
   res.send(pageTemplate("Admin panel", `
     <div class="section">
@@ -1100,6 +1219,12 @@ app.get("/admin", (req, res) => {
       loadBets();
     </script>
   `));
+});
+
+// Logout
+app.post("/logout", (req, res) => {
+  currentUser = null;
+  res.json({ ok: true });
 });
 
 // Compatibility routes
