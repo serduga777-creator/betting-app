@@ -114,7 +114,7 @@ function pageTemplate(title, content) {
 
           .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 16px;
             margin-bottom: 24px;
           }
@@ -208,6 +208,32 @@ function pageTemplate(title, content) {
             background: #475569;
           }
 
+          .odds-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-top: 12px;
+            margin-bottom: 10px;
+          }
+
+          .odds-btn {
+            background: #1d4ed8;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 10px;
+            font-weight: bold;
+            font-size: 14px;
+          }
+
+          .odds-btn.secondary {
+            background: #0f766e;
+          }
+
+          .odds-btn.dark {
+            background: #4338ca;
+          }
+
           pre {
             background: #f4f4f4;
             padding: 14px;
@@ -295,6 +321,10 @@ function pageTemplate(title, content) {
             .hero {
               padding: 28px 20px;
             }
+
+            .odds-row {
+              grid-template-columns: 1fr;
+            }
           }
         </style>
       </head>
@@ -304,6 +334,7 @@ function pageTemplate(title, content) {
             <a href="/">Home</a>
             <a href="/test-register">Register</a>
             <a href="/test-login">Login</a>
+            <a href="/matches">Matches</a>
             <a href="/test-bet">Bet</a>
             <a href="/test-settle">Settle</a>
             <a href="/dashboard">Dashboard</a>
@@ -321,6 +352,28 @@ function pageTemplate(title, content) {
 // Глобальный текущий пользователь для MVP
 let currentUser = null;
 
+// Демо матчи
+const matches = [
+  {
+    id: 1,
+    team1: "Real Madrid",
+    team2: "Barcelona",
+    odds: { home: 2.1, draw: 3.5, away: 3.0 }
+  },
+  {
+    id: 2,
+    team1: "Man City",
+    team2: "Liverpool",
+    odds: { home: 1.9, draw: 3.8, away: 3.4 }
+  },
+  {
+    id: 3,
+    team1: "Bayern",
+    team2: "Dortmund",
+    odds: { home: 1.7, draw: 4.0, away: 4.5 }
+  }
+];
+
 // Главная
 app.get("/", (req, res) => {
   res.send(pageTemplate("Betting App", `
@@ -334,7 +387,7 @@ app.get("/", (req, res) => {
       <div class="buttons">
         <a class="btn btn-primary" href="/test-register">Create account</a>
         <a class="btn btn-secondary" href="/test-login">Login</a>
-        <a class="btn btn-secondary" href="/test-bet">Start betting</a>
+        <a class="btn btn-secondary" href="/matches">Open matches</a>
         <a class="btn btn-secondary" href="/dashboard">My dashboard</a>
       </div>
     </section>
@@ -346,8 +399,8 @@ app.get("/", (req, res) => {
       </div>
 
       <div class="card">
-        <h3>Simple betting flow</h3>
-        <p>Register, login, place a bet, and track status changes like pending, win, and lose.</p>
+        <h3>Ready-made matches</h3>
+        <p>Choose from a list of demo matches instead of entering everything by hand.</p>
       </div>
 
       <div class="card">
@@ -361,7 +414,7 @@ app.get("/", (req, res) => {
       <ol style="line-height:1.9; color:#334155; padding-left:20px;">
         <li>Create a new account on the register page.</li>
         <li>Login with your email and password.</li>
-        <li>Place a bet using your virtual balance.</li>
+        <li>Open matches and place a bet using your virtual balance.</li>
         <li>Open the admin panel and settle the bet as win or lose.</li>
         <li>Check updated balance and bet history in your dashboard.</li>
       </ol>
@@ -374,7 +427,8 @@ app.get("/", (req, res) => {
         <a href="/init-db">Init DB</a>
         <a href="/test-register">Register</a>
         <a href="/test-login">Login</a>
-        <a href="/test-bet">Bet</a>
+        <a href="/matches">Matches</a>
+        <a href="/test-bet">Manual Bet</a>
         <a href="/test-settle">Settle</a>
         <a href="/dashboard">Dashboard</a>
         <a href="/admin">Admin</a>
@@ -764,12 +818,80 @@ app.get("/test-login", (req, res) => {
   `));
 });
 
-// Страница ставки
+// Страница готовых матчей
+app.get("/matches", (req, res) => {
+  res.send(pageTemplate("Matches", `
+    <div class="section">
+      <h1>Matches</h1>
+      <p style="color:#64748b;">Choose a match and place a bet instantly.</p>
+    </div>
+
+    <div class="grid">
+      ${matches.map(match => `
+        <div class="card">
+          <h3>${match.team1} vs ${match.team2}</h3>
+          <p>Pick an outcome and enter your stake.</p>
+
+          <div class="odds-row">
+            <button class="odds-btn" onclick="bet(${match.id}, 'Home', ${match.odds.home})">
+              ${match.team1}<br/>${match.odds.home}
+            </button>
+
+            <button class="odds-btn secondary" onclick="bet(${match.id}, 'Draw', ${match.odds.draw})">
+              Draw<br/>${match.odds.draw}
+            </button>
+
+            <button class="odds-btn dark" onclick="bet(${match.id}, 'Away', ${match.odds.away})">
+              ${match.team2}<br/>${match.odds.away}
+            </button>
+          </div>
+
+          <input id="stake-${match.id}" placeholder="Stake (e.g. 100)" />
+        </div>
+      `).join("")}
+    </div>
+
+    <div class="section">
+      <h2>Result</h2>
+      <pre id="out"></pre>
+    </div>
+
+    <script>
+      const matches = ${JSON.stringify(matches)};
+
+      async function bet(matchId, selection, odds) {
+        const stake = document.getElementById("stake-" + matchId).value;
+        const match = matches.find(m => m.id === matchId);
+
+        const selectionText =
+          selection === "Home" ? match.team1 + " win" :
+          selection === "Away" ? match.team2 + " win" :
+          "Draw";
+
+        const res = await fetch("/place-bet", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({
+            match_name: match.team1 + " vs " + match.team2,
+            selection: selectionText,
+            odds: Number(odds),
+            stake: Number(stake)
+          })
+        });
+
+        const data = await res.json();
+        document.getElementById("out").textContent = JSON.stringify(data, null, 2);
+      }
+    </script>
+  `));
+});
+
+// Страница ручной ставки
 app.get("/test-bet", (req, res) => {
   res.send(pageTemplate("Bet", `
     <div class="box">
-      <h1>Place a bet</h1>
-      <p style="color:#64748b;">First login on the login page, then place a demo bet.</p>
+      <h1>Manual bet</h1>
+      <p style="color:#64748b;">Use this page if you want to enter bet data manually.</p>
       <input id="match" placeholder="Match name (e.g. Real vs Barca)" />
       <input id="sel" placeholder="Selection (e.g. Real win)" />
       <input id="odds" placeholder="Odds (e.g. 2.0)" />
