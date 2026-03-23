@@ -16,9 +16,7 @@ function pageTemplate(title, content) {
         <title>${title}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <style>
-          * {
-            box-sizing: border-box;
-          }
+          * { box-sizing: border-box; }
 
           body {
             margin: 0;
@@ -28,7 +26,7 @@ function pageTemplate(title, content) {
           }
 
           .container {
-            max-width: 1100px;
+            max-width: 1150px;
             margin: 0 auto;
             padding: 24px;
           }
@@ -73,9 +71,7 @@ function pageTemplate(title, content) {
             line-height: 1.1;
           }
 
-          h2 {
-            margin-top: 0;
-          }
+          h2 { margin-top: 0; }
 
           .subtitle {
             font-size: 18px;
@@ -168,7 +164,7 @@ function pageTemplate(title, content) {
             box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
           }
 
-          input, select, button, textarea {
+          input, select, button {
             width: 100%;
             margin: 8px 0;
             padding: 14px;
@@ -196,50 +192,28 @@ function pageTemplate(title, content) {
             min-width: 110px;
           }
 
-          .win-btn {
-            background: #16a34a;
-          }
+          .win-btn { background: #16a34a; }
+          .lose-btn { background: #dc2626; }
+          .logout-btn { background: #475569; }
 
-          .lose-btn {
-            background: #dc2626;
-          }
-
-          .logout-btn {
-            background: #475569;
-          }
-
-          .odds-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 8px;
-            margin-top: 12px;
-            margin-bottom: 10px;
-          }
-
-          .odds-btn {
-            background: #1d4ed8;
-            color: white;
-            border: none;
-            border-radius: 12px;
-            padding: 12px 10px;
+          .status-badge {
+            display: inline-block;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 12px;
             font-weight: bold;
+            text-transform: uppercase;
+          }
+
+          .status-pending { background: #fef3c7; color: #92400e; }
+          .status-win { background: #dcfce7; color: #166534; }
+          .status-lose { background: #fee2e2; color: #991b1b; }
+
+          .footer-note {
             font-size: 14px;
-          }
-
-          .odds-btn.secondary {
-            background: #0f766e;
-          }
-
-          .odds-btn.dark {
-            background: #4338ca;
-          }
-
-          pre {
-            background: #f4f4f4;
-            padding: 14px;
-            white-space: pre-wrap;
-            border-radius: 12px;
-            overflow: auto;
+            color: #64748b;
+            text-align: center;
+            padding-bottom: 20px;
           }
 
           .stats {
@@ -274,57 +248,105 @@ function pageTemplate(title, content) {
             background: #fff;
           }
 
-          .status-badge {
-            display: inline-block;
-            padding: 6px 10px;
-            border-radius: 999px;
-            font-size: 12px;
+          .matches-layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 18px;
+            align-items: start;
+          }
+
+          .match-card {
+            background: white;
+            border-radius: 18px;
+            padding: 22px;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+          }
+
+          .teams {
+            font-size: 22px;
             font-weight: bold;
-            text-transform: uppercase;
+            margin-bottom: 8px;
           }
 
-          .status-pending {
-            background: #fef3c7;
-            color: #92400e;
-          }
-
-          .status-win {
-            background: #dcfce7;
-            color: #166534;
-          }
-
-          .status-lose {
-            background: #fee2e2;
-            color: #991b1b;
-          }
-
-          .footer-note {
-            font-size: 14px;
+          .match-sub {
             color: #64748b;
-            text-align: center;
-            padding-bottom: 20px;
+            margin-bottom: 16px;
+          }
+
+          .odds-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+          }
+
+          .odds-btn {
+            background: #1d4ed8;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 10px;
+            font-weight: bold;
+            font-size: 14px;
+            line-height: 1.4;
+          }
+
+          .odds-btn.secondary { background: #0f766e; }
+          .odds-btn.dark { background: #4338ca; }
+
+          .betslip {
+            position: sticky;
+            top: 20px;
+            background: white;
+            border-radius: 18px;
+            padding: 22px;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+          }
+
+          .betslip-title {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 16px;
+          }
+
+          .muted {
+            color: #64748b;
+          }
+
+          .selected-box {
+            background: #eff6ff;
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 14px;
+          }
+
+          .result-box {
+            margin-top: 18px;
+          }
+
+          pre {
+            background: #f4f4f4;
+            padding: 14px;
+            white-space: pre-wrap;
+            border-radius: 12px;
+            overflow: auto;
+          }
+
+          @media (max-width: 900px) {
+            .matches-layout {
+              grid-template-columns: 1fr;
+            }
+
+            .betslip {
+              position: static;
+            }
           }
 
           @media (max-width: 640px) {
-            .container {
-              padding: 16px;
-            }
-
-            h1 {
-              font-size: 30px;
-            }
-
-            .subtitle {
-              font-size: 16px;
-            }
-
-            .hero {
-              padding: 28px 20px;
-            }
-
-            .odds-row {
-              grid-template-columns: 1fr;
-            }
+            .container { padding: 16px; }
+            h1 { font-size: 30px; }
+            .subtitle { font-size: 16px; }
+            .hero { padding: 28px 20px; }
+            .odds-row { grid-template-columns: 1fr; }
           }
         </style>
       </head>
@@ -335,7 +357,7 @@ function pageTemplate(title, content) {
             <a href="/test-register">Register</a>
             <a href="/test-login">Login</a>
             <a href="/matches">Matches</a>
-            <a href="/test-bet">Bet</a>
+            <a href="/test-bet">Manual Bet</a>
             <a href="/test-settle">Settle</a>
             <a href="/dashboard">Dashboard</a>
             <a href="/admin">Admin</a>
@@ -349,27 +371,28 @@ function pageTemplate(title, content) {
   `;
 }
 
-// Глобальный текущий пользователь для MVP
 let currentUser = null;
 
-// Демо матчи
 const matches = [
   {
     id: 1,
     team1: "Real Madrid",
     team2: "Barcelona",
+    league: "La Liga",
     odds: { home: 2.1, draw: 3.5, away: 3.0 }
   },
   {
     id: 2,
     team1: "Man City",
     team2: "Liverpool",
+    league: "Premier League",
     odds: { home: 1.9, draw: 3.8, away: 3.4 }
   },
   {
     id: 3,
     team1: "Bayern",
     team2: "Dortmund",
+    league: "Bundesliga",
     odds: { home: 1.7, draw: 4.0, away: 4.5 }
   }
 ];
@@ -381,7 +404,7 @@ app.get("/", (req, res) => {
       <div class="badge">Demo betting app</div>
       <h1>Practice betting without real money</h1>
       <div class="subtitle">
-        Create an account, use a virtual balance, place demo bets, and settle them through a simple admin panel. This is a product MVP for testing the betting experience.
+        Create an account, use a virtual balance, place demo bets, and settle them through a simple admin panel.
       </div>
 
       <div class="buttons">
@@ -399,41 +422,13 @@ app.get("/", (req, res) => {
       </div>
 
       <div class="card">
-        <h3>Ready-made matches</h3>
-        <p>Choose from a list of demo matches instead of entering everything by hand.</p>
+        <h3>Match cards</h3>
+        <p>Choose ready-made demo matches instead of entering match data by hand.</p>
       </div>
 
       <div class="card">
-        <h3>Admin settlement</h3>
-        <p>Use the admin panel to settle bets and automatically update the player balance.</p>
-      </div>
-    </section>
-
-    <section class="section">
-      <h2>How it works</h2>
-      <ol style="line-height:1.9; color:#334155; padding-left:20px;">
-        <li>Create a new account on the register page.</li>
-        <li>Login with your email and password.</li>
-        <li>Open matches and place a bet using your virtual balance.</li>
-        <li>Open the admin panel and settle the bet as win or lose.</li>
-        <li>Check updated balance and bet history in your dashboard.</li>
-      </ol>
-    </section>
-
-    <section class="section">
-      <h2>Quick links</h2>
-      <div class="quick-links">
-        <a href="/db-test">DB test</a>
-        <a href="/init-db">Init DB</a>
-        <a href="/test-register">Register</a>
-        <a href="/test-login">Login</a>
-        <a href="/matches">Matches</a>
-        <a href="/test-bet">Manual Bet</a>
-        <a href="/test-settle">Settle</a>
-        <a href="/dashboard">Dashboard</a>
-        <a href="/admin">Admin</a>
-        <a href="/users">Users</a>
-        <a href="/bets">Bets</a>
+        <h3>Bet slip</h3>
+        <p>Select an outcome, enter your stake, and instantly see your possible win.</p>
       </div>
     </section>
 
@@ -443,7 +438,7 @@ app.get("/", (req, res) => {
   `));
 });
 
-// Проверка базы
+// DB test
 app.get("/db-test", async (req, res) => {
   try {
     const result = await pool.query("SELECT NOW() as now");
@@ -453,7 +448,7 @@ app.get("/db-test", async (req, res) => {
   }
 });
 
-// Создание таблиц
+// Init DB
 app.get("/init-db", async (req, res) => {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -482,7 +477,7 @@ app.get("/init-db", async (req, res) => {
   res.json({ ok: true });
 });
 
-// Регистрация
+// Register
 app.post("/register", async (req, res) => {
   const { email, password } = req.body;
 
@@ -494,7 +489,7 @@ app.post("/register", async (req, res) => {
   res.json({ ok: true, user: result.rows[0] });
 });
 
-// Логин
+// Login
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
@@ -511,7 +506,7 @@ app.post("/login", async (req, res) => {
   res.json({ ok: true, user: currentUser });
 });
 
-// Профиль JSON
+// Me
 app.get("/me", async (req, res) => {
   if (!currentUser) return res.json({ ok: false, message: "Not logged in" });
 
@@ -524,13 +519,18 @@ app.get("/me", async (req, res) => {
   res.json({ ok: true, user: currentUser });
 });
 
-// Поставить ставку
+// Place bet
 app.post("/place-bet", async (req, res) => {
   if (!currentUser) {
     return res.json({ ok: false, message: "Not logged in" });
   }
 
   const { match_name, selection, odds, stake } = req.body;
+
+  if (!stake || Number(stake) <= 0) {
+    return res.json({ ok: false, message: "Invalid stake" });
+  }
+
   const possible_win = Number(odds) * Number(stake);
 
   await pool.query(
@@ -558,7 +558,7 @@ app.post("/place-bet", async (req, res) => {
   });
 });
 
-// Settling ставки
+// Settle bet
 app.post("/settle-bet", async (req, res) => {
   const { betId, status } = req.body;
 
@@ -616,13 +616,13 @@ app.post("/settle-bet", async (req, res) => {
   res.json({ ok: true, message: "Bet settled", newBalance });
 });
 
-// Пользователи
+// Users
 app.get("/users", async (req, res) => {
   const result = await pool.query("SELECT * FROM users ORDER BY id DESC");
   res.json({ ok: true, users: result.rows });
 });
 
-// Ставки
+// Bets
 app.get("/bets", async (req, res) => {
   const result = await pool.query(`
     SELECT bets.*, users.email
@@ -638,7 +638,7 @@ app.get("/dashboard", (req, res) => {
   res.send(pageTemplate("Dashboard", `
     <div class="section">
       <h1>My dashboard</h1>
-      <p style="color:#64748b;">See your account, current balance, and all your bets in one place.</p>
+      <p class="muted">See your account, current balance, and all your bets in one place.</p>
 
       <div class="button-row" style="margin-top:16px;">
         <button onclick="loadDashboard()">Refresh dashboard</button>
@@ -647,9 +647,7 @@ app.get("/dashboard", (req, res) => {
     </div>
 
     <div id="dashboardContent">
-      <div class="section">
-        <p>Loading...</p>
-      </div>
+      <div class="section"><p>Loading...</p></div>
     </div>
 
     <script>
@@ -674,7 +672,6 @@ app.get("/dashboard", (req, res) => {
         const betsData = await betsRes.json();
 
         const myBets = (betsData.bets || []).filter(bet => Number(bet.user_id) === Number(meData.user.id));
-
         const pendingCount = myBets.filter(b => b.status === "pending").length;
         const winCount = myBets.filter(b => b.status === "win").length;
         const loseCount = myBets.filter(b => b.status === "lose").length;
@@ -701,22 +698,10 @@ app.get("/dashboard", (req, res) => {
           <div class="section">
             <h2>My stats</h2>
             <div class="stats">
-              <div class="stat">
-                <div class="stat-label">Total bets</div>
-                <div class="stat-value">\${myBets.length}</div>
-              </div>
-              <div class="stat">
-                <div class="stat-label">Pending</div>
-                <div class="stat-value">\${pendingCount}</div>
-              </div>
-              <div class="stat">
-                <div class="stat-label">Wins</div>
-                <div class="stat-value">\${winCount}</div>
-              </div>
-              <div class="stat">
-                <div class="stat-label">Loses</div>
-                <div class="stat-value">\${loseCount}</div>
-              </div>
+              <div class="stat"><div class="stat-label">Total bets</div><div class="stat-value">\${myBets.length}</div></div>
+              <div class="stat"><div class="stat-label">Pending</div><div class="stat-value">\${pendingCount}</div></div>
+              <div class="stat"><div class="stat-label">Wins</div><div class="stat-value">\${winCount}</div></div>
+              <div class="stat"><div class="stat-label">Loses</div><div class="stat-value">\${loseCount}</div></div>
             </div>
           </div>
 
@@ -755,12 +740,12 @@ app.post("/logout", (req, res) => {
   res.json({ ok: true });
 });
 
-// Страница регистрации
+// Register page
 app.get("/test-register", (req, res) => {
   res.send(pageTemplate("Register", `
     <div class="box">
       <h1>Create account</h1>
-      <p style="color:#64748b;">Start with a virtual balance and test the betting flow.</p>
+      <p class="muted">Start with a virtual balance and test the betting flow.</p>
       <input id="email" placeholder="Email" />
       <input id="password" placeholder="Password" type="password" />
       <button onclick="reg()">Register</button>
@@ -783,12 +768,12 @@ app.get("/test-register", (req, res) => {
   `));
 });
 
-// Страница логина
+// Login page
 app.get("/test-login", (req, res) => {
   res.send(pageTemplate("Login", `
     <div class="box">
       <h1>Login</h1>
-      <p style="color:#64748b;">Login to place bets and track your dashboard.</p>
+      <p class="muted">Login to place bets and track your dashboard.</p>
       <input id="email" placeholder="Email" />
       <input id="password" placeholder="Password" type="password" />
       <button onclick="login()">Login</button>
@@ -818,49 +803,68 @@ app.get("/test-login", (req, res) => {
   `));
 });
 
-// Страница готовых матчей
+// Matches with bet slip
 app.get("/matches", (req, res) => {
   res.send(pageTemplate("Matches", `
     <div class="section">
       <h1>Matches</h1>
-      <p style="color:#64748b;">Choose a match and place a bet instantly.</p>
+      <p class="muted">Select an outcome, enter your stake in the bet slip, and place your bet.</p>
     </div>
 
-    <div class="grid">
-      ${matches.map(match => `
-        <div class="card">
-          <h3>${match.team1} vs ${match.team2}</h3>
-          <p>Pick an outcome and enter your stake.</p>
+    <div class="matches-layout">
+      <div>
+        ${matches.map(match => `
+          <div class="match-card" style="margin-bottom:16px;">
+            <div class="teams">${match.team1} vs ${match.team2}</div>
+            <div class="match-sub">${match.league}</div>
 
-          <div class="odds-row">
-            <button class="odds-btn" onclick="bet(${match.id}, 'Home', ${match.odds.home})">
-              ${match.team1}<br/>${match.odds.home}
-            </button>
+            <div class="odds-row">
+              <button class="odds-btn" onclick="selectBet(${match.id}, 'Home', ${match.odds.home})">
+                ${match.team1}<br>${match.odds.home}
+              </button>
+              <button class="odds-btn secondary" onclick="selectBet(${match.id}, 'Draw', ${match.odds.draw})">
+                Draw<br>${match.odds.draw}
+              </button>
+              <button class="odds-btn dark" onclick="selectBet(${match.id}, 'Away', ${match.odds.away})">
+                ${match.team2}<br>${match.odds.away}
+              </button>
+            </div>
+          </div>
+        `).join("")}
+      </div>
 
-            <button class="odds-btn secondary" onclick="bet(${match.id}, 'Draw', ${match.odds.draw})">
-              Draw<br/>${match.odds.draw}
-            </button>
+      <div class="betslip">
+        <div class="betslip-title">Bet slip</div>
+        <div id="emptySlip" class="muted">Choose an outcome to add it here.</div>
 
-            <button class="odds-btn dark" onclick="bet(${match.id}, 'Away', ${match.odds.away})">
-              ${match.team2}<br/>${match.odds.away}
-            </button>
+        <div id="slipContent" style="display:none;">
+          <div class="selected-box">
+            <div><strong id="slipMatch"></strong></div>
+            <div class="muted" id="slipSelection"></div>
+            <div style="margin-top:8px;"><strong>Odds:</strong> <span id="slipOdds"></span></div>
           </div>
 
-          <input id="stake-${match.id}" placeholder="Stake (e.g. 100)" />
-        </div>
-      `).join("")}
-    </div>
+          <input id="slipStake" placeholder="Stake (e.g. 100)" oninput="updatePossibleWin()" />
 
-    <div class="section">
-      <h2>Result</h2>
-      <pre id="out"></pre>
+          <div class="selected-box">
+            <div><strong>Possible win</strong></div>
+            <div style="font-size:26px; font-weight:bold; color:#1d4ed8;" id="possibleWin">0</div>
+          </div>
+
+          <button onclick="placeSlipBet()">Place bet</button>
+        </div>
+
+        <div class="result-box">
+          <pre id="out"></pre>
+        </div>
+      </div>
     </div>
 
     <script>
       const matches = ${JSON.stringify(matches)};
+      let selectedBet = null;
 
-      async function bet(matchId, selection, odds) {
-        const stake = document.getElementById("stake-" + matchId).value;
+      function selectBet(matchId, selection, odds) {
         const match = matches.find(m => m.id === matchId);
 
         const selectionText =
@@ -868,14 +872,41 @@ app.get("/matches", (req, res) => {
           selection === "Away" ? match.team2 + " win" :
           "Draw";
 
+        selectedBet = {
+          match_name: match.team1 + " vs " + match.team2,
+          selection: selectionText,
+          odds: Number(odds)
+        };
+
+        document.getElementById("emptySlip").style.display = "none";
+        document.getElementById("slipContent").style.display = "block";
+        document.getElementById("slipMatch").textContent = selectedBet.match_name;
+        document.getElementById("slipSelection").textContent = selectedBet.selection;
+        document.getElementById("slipOdds").textContent = selectedBet.odds;
+        document.getElementById("slipStake").value = "";
+        document.getElementById("possibleWin").textContent = "0";
+      }
+
+      function updatePossibleWin() {
+        if (!selectedBet) return;
+        const stake = Number(document.getElementById("slipStake").value || 0);
+        const win = stake * selectedBet.odds;
+        document.getElementById("possibleWin").textContent = String(win || 0);
+      }
+
+      async function placeSlipBet() {
+        if (!selectedBet) return;
+
+        const stake = Number(document.getElementById("slipStake").value || 0);
+
         const res = await fetch("/place-bet", {
           method: "POST",
           headers: {"Content-Type":"application/json"},
           body: JSON.stringify({
-            match_name: match.team1 + " vs " + match.team2,
-            selection: selectionText,
-            odds: Number(odds),
-            stake: Number(stake)
+            match_name: selectedBet.match_name,
+            selection: selectedBet.selection,
+            odds: selectedBet.odds,
+            stake: stake
           })
         });
 
@@ -886,12 +917,12 @@ app.get("/matches", (req, res) => {
   `));
 });
 
-// Страница ручной ставки
+// Manual bet page
 app.get("/test-bet", (req, res) => {
-  res.send(pageTemplate("Bet", `
+  res.send(pageTemplate("Manual Bet", `
     <div class="box">
       <h1>Manual bet</h1>
-      <p style="color:#64748b;">Use this page if you want to enter bet data manually.</p>
+      <p class="muted">Use this page if you want to enter bet data manually.</p>
       <input id="match" placeholder="Match name (e.g. Real vs Barca)" />
       <input id="sel" placeholder="Selection (e.g. Real win)" />
       <input id="odds" placeholder="Odds (e.g. 2.0)" />
@@ -918,12 +949,12 @@ app.get("/test-bet", (req, res) => {
   `));
 });
 
-// Страница settle
+// Settle page
 app.get("/test-settle", (req, res) => {
   res.send(pageTemplate("Settle bet", `
     <div class="box">
       <h1>Settle bet</h1>
-      <p style="color:#64748b;">Enter bet ID and mark it as win or lose.</p>
+      <p class="muted">Enter bet ID and mark it as win or lose.</p>
       <input id="id" placeholder="Bet ID" />
       <select id="status">
         <option value="win">win</option>
@@ -949,12 +980,12 @@ app.get("/test-settle", (req, res) => {
   `));
 });
 
-// Админка
+// Admin
 app.get("/admin", (req, res) => {
   res.send(pageTemplate("Admin panel", `
     <div class="section">
       <h1>Admin panel</h1>
-      <p style="color:#64748b;">Manage bets and settle them with one click.</p>
+      <p class="muted">Manage bets and settle them with one click.</p>
       <button onclick="loadBets()">Refresh bets</button>
       <div id="betsBox" style="margin-top:20px;"></div>
     </div>
