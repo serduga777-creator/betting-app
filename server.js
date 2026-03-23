@@ -97,6 +97,8 @@ function pageTemplate(title, content) {
             border-radius: 12px;
             font-weight: bold;
             display: inline-block;
+            cursor: pointer;
+            border: none;
           }
 
           .btn-primary {
@@ -202,12 +204,72 @@ function pageTemplate(title, content) {
             background: #dc2626;
           }
 
+          .logout-btn {
+            background: #475569;
+          }
+
           pre {
             background: #f4f4f4;
             padding: 14px;
             white-space: pre-wrap;
             border-radius: 12px;
             overflow: auto;
+          }
+
+          .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+          }
+
+          .stat {
+            background: #eff6ff;
+            border-radius: 14px;
+            padding: 18px;
+          }
+
+          .stat-label {
+            font-size: 14px;
+            color: #475569;
+            margin-bottom: 8px;
+          }
+
+          .stat-value {
+            font-size: 26px;
+            font-weight: bold;
+            color: #1d4ed8;
+          }
+
+          .bet-row {
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 12px;
+            background: #fff;
+          }
+
+          .status-badge {
+            display: inline-block;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+          }
+
+          .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+          }
+
+          .status-win {
+            background: #dcfce7;
+            color: #166534;
+          }
+
+          .status-lose {
+            background: #fee2e2;
+            color: #991b1b;
           }
 
           .footer-note {
@@ -244,6 +306,7 @@ function pageTemplate(title, content) {
             <a href="/test-login">Login</a>
             <a href="/test-bet">Bet</a>
             <a href="/test-settle">Settle</a>
+            <a href="/dashboard">Dashboard</a>
             <a href="/admin">Admin</a>
             <a href="/users">Users</a>
             <a href="/bets">Bets</a>
@@ -254,6 +317,9 @@ function pageTemplate(title, content) {
     </html>
   `;
 }
+
+// Глобальный текущий пользователь для MVP
+let currentUser = null;
 
 // Главная
 app.get("/", (req, res) => {
@@ -269,7 +335,7 @@ app.get("/", (req, res) => {
         <a class="btn btn-primary" href="/test-register">Create account</a>
         <a class="btn btn-secondary" href="/test-login">Login</a>
         <a class="btn btn-secondary" href="/test-bet">Start betting</a>
-        <a class="btn btn-secondary" href="/admin">Admin panel</a>
+        <a class="btn btn-secondary" href="/dashboard">My dashboard</a>
       </div>
     </section>
 
@@ -297,7 +363,7 @@ app.get("/", (req, res) => {
         <li>Login with your email and password.</li>
         <li>Place a bet using your virtual balance.</li>
         <li>Open the admin panel and settle the bet as win or lose.</li>
-        <li>Check updated balance and bet history.</li>
+        <li>Check updated balance and bet history in your dashboard.</li>
       </ol>
     </section>
 
@@ -310,10 +376,10 @@ app.get("/", (req, res) => {
         <a href="/test-login">Login</a>
         <a href="/test-bet">Bet</a>
         <a href="/test-settle">Settle</a>
+        <a href="/dashboard">Dashboard</a>
         <a href="/admin">Admin</a>
         <a href="/users">Users</a>
         <a href="/bets">Bets</a>
-        <a href="/me">My profile</a>
       </div>
     </section>
 
@@ -375,8 +441,6 @@ app.post("/register", async (req, res) => {
 });
 
 // Логин
-let currentUser = null;
-
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
@@ -393,10 +457,17 @@ app.post("/login", async (req, res) => {
   res.json({ ok: true, user: currentUser });
 });
 
-// Профиль
-app.get("/me", (req, res) => {
-  if (!currentUser) return res.send("Not logged in");
-  res.json(currentUser);
+// Профиль JSON
+app.get("/me", async (req, res) => {
+  if (!currentUser) return res.json({ ok: false, message: "Not logged in" });
+
+  const userResult = await pool.query(
+    "SELECT * FROM users WHERE id=$1",
+    [currentUser.id]
+  );
+
+  currentUser = userResult.rows[0];
+  res.json({ ok: true, user: currentUser });
 });
 
 // Поставить ставку
@@ -406,7 +477,7 @@ app.post("/place-bet", async (req, res) => {
   }
 
   const { match_name, selection, odds, stake } = req.body;
-  const possible_win = odds * stake;
+  const possible_win = Number(odds) * Number(stake);
 
   await pool.query(
     "UPDATE users SET balance = balance - $1 WHERE id=$2",
@@ -480,6 +551,14 @@ app.post("/settle-bet", async (req, res) => {
     newBalance = userResult.rows[0].balance;
   }
 
+  if (currentUser && Number(currentUser.id) === Number(bet.user_id)) {
+    const updatedCurrentUser = await pool.query(
+      "SELECT * FROM users WHERE id=$1",
+      [currentUser.id]
+    );
+    currentUser = updatedCurrentUser.rows[0];
+  }
+
   res.json({ ok: true, message: "Bet settled", newBalance });
 });
 
@@ -498,6 +577,128 @@ app.get("/bets", async (req, res) => {
     ORDER BY bets.id DESC
   `);
   res.json({ ok: true, bets: result.rows });
+});
+
+// Dashboard
+app.get("/dashboard", (req, res) => {
+  res.send(pageTemplate("Dashboard", `
+    <div class="section">
+      <h1>My dashboard</h1>
+      <p style="color:#64748b;">See your account, current balance, and all your bets in one place.</p>
+
+      <div class="button-row" style="margin-top:16px;">
+        <button onclick="loadDashboard()">Refresh dashboard</button>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </div>
+    </div>
+
+    <div id="dashboardContent">
+      <div class="section">
+        <p>Loading...</p>
+      </div>
+    </div>
+
+    <script>
+      async function loadDashboard() {
+        const meRes = await fetch("/me");
+        const meData = await meRes.json();
+
+        if (!meData.ok) {
+          document.getElementById("dashboardContent").innerHTML = \`
+            <div class="section">
+              <h2>Not logged in</h2>
+              <p>Please login first.</p>
+              <div class="quick-links">
+                <a href="/test-login">Go to login</a>
+              </div>
+            </div>
+          \`;
+          return;
+        }
+
+        const betsRes = await fetch("/bets");
+        const betsData = await betsRes.json();
+
+        const myBets = (betsData.bets || []).filter(bet => Number(bet.user_id) === Number(meData.user.id));
+
+        const pendingCount = myBets.filter(b => b.status === "pending").length;
+        const winCount = myBets.filter(b => b.status === "win").length;
+        const loseCount = myBets.filter(b => b.status === "lose").length;
+
+        document.getElementById("dashboardContent").innerHTML = \`
+          <div class="section">
+            <h2>Account</h2>
+            <div class="stats">
+              <div class="stat">
+                <div class="stat-label">Email</div>
+                <div class="stat-value" style="font-size:18px;">\${meData.user.email}</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">Balance</div>
+                <div class="stat-value">\${meData.user.balance}</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">User ID</div>
+                <div class="stat-value">\${meData.user.id}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>My stats</h2>
+            <div class="stats">
+              <div class="stat">
+                <div class="stat-label">Total bets</div>
+                <div class="stat-value">\${myBets.length}</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">Pending</div>
+                <div class="stat-value">\${pendingCount}</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">Wins</div>
+                <div class="stat-value">\${winCount}</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">Loses</div>
+                <div class="stat-value">\${loseCount}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>My bets</h2>
+            \${myBets.length === 0 ? "<p>No bets yet.</p>" : myBets.map(bet => \`
+              <div class="bet-row">
+                <div><strong>ID:</strong> \${bet.id}</div>
+                <div><strong>Match:</strong> \${bet.match_name}</div>
+                <div><strong>Selection:</strong> \${bet.selection}</div>
+                <div><strong>Odds:</strong> \${bet.odds}</div>
+                <div><strong>Stake:</strong> \${bet.stake}</div>
+                <div><strong>Possible win:</strong> \${bet.possible_win}</div>
+                <div style="margin-top:8px;">
+                  <span class="status-badge status-\${bet.status}">\${bet.status}</span>
+                </div>
+              </div>
+            \`).join("")}
+          </div>
+        \`;
+      }
+
+      async function logout() {
+        await fetch("/logout", { method: "POST" });
+        loadDashboard();
+      }
+
+      loadDashboard();
+    </script>
+  `));
+});
+
+// Logout
+app.post("/logout", (req, res) => {
+  currentUser = null;
+  res.json({ ok: true });
 });
 
 // Страница регистрации
@@ -533,7 +734,7 @@ app.get("/test-login", (req, res) => {
   res.send(pageTemplate("Login", `
     <div class="box">
       <h1>Login</h1>
-      <p style="color:#64748b;">Login to place bets with your demo balance.</p>
+      <p style="color:#64748b;">Login to place bets and track your dashboard.</p>
       <input id="email" placeholder="Email" />
       <input id="password" placeholder="Password" type="password" />
       <button onclick="login()">Login</button>
@@ -550,7 +751,14 @@ app.get("/test-login", (req, res) => {
             password: password.value
           })
         });
-        out.textContent = JSON.stringify(await res.json(), null, 2);
+        const data = await res.json();
+        out.textContent = JSON.stringify(data, null, 2);
+
+        if (data.ok) {
+          setTimeout(() => {
+            window.location.href = "/dashboard";
+          }, 600);
+        }
       }
     </script>
   `));
