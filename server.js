@@ -9,12 +9,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Главная
-app.get("/", (req, res) => {
-  res.send(`
+function pageTemplate(title, content) {
+  return `
     <html>
       <head>
-        <title>Betting App</title>
+        <title>${title}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <style>
           * {
@@ -32,6 +31,22 @@ app.get("/", (req, res) => {
             max-width: 1100px;
             margin: 0 auto;
             padding: 24px;
+          }
+
+          .nav {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+          }
+
+          .nav a {
+            text-decoration: none;
+            color: #1d4ed8;
+            background: #eff6ff;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-weight: bold;
           }
 
           .hero {
@@ -54,8 +69,12 @@ app.get("/", (req, res) => {
 
           h1 {
             margin: 0 0 14px 0;
-            font-size: 40px;
+            font-size: 38px;
             line-height: 1.1;
+          }
+
+          h2 {
+            margin-top: 0;
           }
 
           .subtitle {
@@ -78,11 +97,6 @@ app.get("/", (req, res) => {
             border-radius: 12px;
             font-weight: bold;
             display: inline-block;
-            transition: 0.2s ease;
-          }
-
-          .btn:hover {
-            transform: translateY(-1px);
           }
 
           .btn-primary {
@@ -129,18 +143,6 @@ app.get("/", (req, res) => {
             margin-bottom: 24px;
           }
 
-          .section h2 {
-            margin-top: 0;
-            margin-bottom: 14px;
-          }
-
-          .section ol {
-            margin: 0;
-            padding-left: 20px;
-            line-height: 1.9;
-            color: #334155;
-          }
-
           .quick-links {
             display: flex;
             flex-wrap: wrap;
@@ -156,6 +158,58 @@ app.get("/", (req, res) => {
             font-weight: bold;
           }
 
+          .box {
+            max-width: 520px;
+            background: white;
+            padding: 24px;
+            border-radius: 18px;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+          }
+
+          input, select, button, textarea {
+            width: 100%;
+            margin: 8px 0;
+            padding: 14px;
+            border-radius: 10px;
+            border: 1px solid #dbe2ea;
+            font-size: 16px;
+          }
+
+          button {
+            background: #2563eb;
+            color: white;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+          }
+
+          .button-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+          }
+
+          .button-row button {
+            width: auto;
+            min-width: 110px;
+          }
+
+          .win-btn {
+            background: #16a34a;
+          }
+
+          .lose-btn {
+            background: #dc2626;
+          }
+
+          pre {
+            background: #f4f4f4;
+            padding: 14px;
+            white-space: pre-wrap;
+            border-radius: 12px;
+            overflow: auto;
+          }
+
           .footer-note {
             font-size: 14px;
             color: #64748b;
@@ -164,6 +218,10 @@ app.get("/", (req, res) => {
           }
 
           @media (max-width: 640px) {
+            .container {
+              padding: 16px;
+            }
+
             h1 {
               font-size: 30px;
             }
@@ -175,81 +233,94 @@ app.get("/", (req, res) => {
             .hero {
               padding: 28px 20px;
             }
-
-            .container {
-              padding: 16px;
-            }
           }
         </style>
       </head>
       <body>
         <div class="container">
-          <section class="hero">
-            <div class="badge">Demo betting app</div>
-            <h1>Practice betting without real money</h1>
-            <div class="subtitle">
-              Create an account, use a virtual balance, place demo bets, and settle them through a simple admin panel. This is a product MVP for testing the betting experience.
-            </div>
-
-            <div class="buttons">
-              <a class="btn btn-primary" href="/test-register">Create account</a>
-              <a class="btn btn-secondary" href="/test-login">Login</a>
-              <a class="btn btn-secondary" href="/test-bet">Start betting</a>
-              <a class="btn btn-secondary" href="/admin">Admin panel</a>
-            </div>
-          </section>
-
-          <section class="grid">
-            <div class="card">
-              <h3>Virtual balance</h3>
-              <p>Each new user gets a demo balance, so the whole experience works without real money.</p>
-            </div>
-
-            <div class="card">
-              <h3>Simple betting flow</h3>
-              <p>Register, login, place a bet, and track status changes like pending, win, and lose.</p>
-            </div>
-
-            <div class="card">
-              <h3>Admin settlement</h3>
-              <p>Use the admin panel to settle bets and automatically update the player balance.</p>
-            </div>
-          </section>
-
-          <section class="section">
-            <h2>How it works</h2>
-            <ol>
-              <li>Create a new account on the register page.</li>
-              <li>Login with your email and password.</li>
-              <li>Place a bet using your virtual balance.</li>
-              <li>Open the admin panel and settle the bet as win or lose.</li>
-              <li>Check updated balance and bet history.</li>
-            </ol>
-          </section>
-
-          <section class="section">
-            <h2>Quick links</h2>
-            <div class="quick-links">
-              <a href="/db-test">DB test</a>
-              <a href="/init-db">Init DB</a>
-              <a href="/test-register">Register</a>
-              <a href="/test-login">Login</a>
-              <a href="/test-bet">Bet</a>
-              <a href="/test-settle">Settle</a>
-              <a href="/admin">Admin</a>
-              <a href="/users">Users</a>
-              <a href="/bets">Bets</a>
-              <a href="/me">My profile</a>
-            </div>
-          </section>
-
-          <div class="footer-note">
-            This is a demo app. No real money involved.
+          <div class="nav">
+            <a href="/">Home</a>
+            <a href="/test-register">Register</a>
+            <a href="/test-login">Login</a>
+            <a href="/test-bet">Bet</a>
+            <a href="/test-settle">Settle</a>
+            <a href="/admin">Admin</a>
+            <a href="/users">Users</a>
+            <a href="/bets">Bets</a>
           </div>
+          ${content}
         </div>
       </body>
     </html>
-  `);
+  `;
+}
+
+// Главная
+app.get("/", (req, res) => {
+  res.send(pageTemplate("Betting App", `
+    <section class="hero">
+      <div class="badge">Demo betting app</div>
+      <h1>Practice betting without real money</h1>
+      <div class="subtitle">
+        Create an account, use a virtual balance, place demo bets, and settle them through a simple admin panel. This is a product MVP for testing the betting experience.
+      </div>
+
+      <div class="buttons">
+        <a class="btn btn-primary" href="/test-register">Create account</a>
+        <a class="btn btn-secondary" href="/test-login">Login</a>
+        <a class="btn btn-secondary" href="/test-bet">Start betting</a>
+        <a class="btn btn-secondary" href="/admin">Admin panel</a>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h3>Virtual balance</h3>
+        <p>Each new user gets a demo balance, so the whole experience works without real money.</p>
+      </div>
+
+      <div class="card">
+        <h3>Simple betting flow</h3>
+        <p>Register, login, place a bet, and track status changes like pending, win, and lose.</p>
+      </div>
+
+      <div class="card">
+        <h3>Admin settlement</h3>
+        <p>Use the admin panel to settle bets and automatically update the player balance.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>How it works</h2>
+      <ol style="line-height:1.9; color:#334155; padding-left:20px;">
+        <li>Create a new account on the register page.</li>
+        <li>Login with your email and password.</li>
+        <li>Place a bet using your virtual balance.</li>
+        <li>Open the admin panel and settle the bet as win or lose.</li>
+        <li>Check updated balance and bet history.</li>
+      </ol>
+    </section>
+
+    <section class="section">
+      <h2>Quick links</h2>
+      <div class="quick-links">
+        <a href="/db-test">DB test</a>
+        <a href="/init-db">Init DB</a>
+        <a href="/test-register">Register</a>
+        <a href="/test-login">Login</a>
+        <a href="/test-bet">Bet</a>
+        <a href="/test-settle">Settle</a>
+        <a href="/admin">Admin</a>
+        <a href="/users">Users</a>
+        <a href="/bets">Bets</a>
+        <a href="/me">My profile</a>
+      </div>
+    </section>
+
+    <div class="footer-note">
+      This is a demo app. No real money involved.
+    </div>
+  `));
 });
 
 // Проверка базы
@@ -431,275 +502,181 @@ app.get("/bets", async (req, res) => {
 
 // Страница регистрации
 app.get("/test-register", (req, res) => {
-  res.send(`
-    <html>
-      <head>
-        <title>Register test</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <style>
-          body { font-family: Arial, sans-serif; padding: 24px; background:#f5f7fb; }
-          .box { max-width: 420px; background:white; padding:24px; border-radius:16px; box-shadow:0 10px 28px rgba(15,23,42,0.06); }
-          input, button { width:100%; margin:8px 0; padding:14px; border-radius:10px; border:1px solid #dbe2ea; }
-          button { background:#2563eb; color:white; font-weight:bold; border:none; }
-          pre { background:#f4f4f4; padding:10px; white-space:pre-wrap; border-radius:10px; }
-        </style>
-      </head>
-      <body>
-        <div class="box">
-          <h1>Register test</h1>
-          <input id="email" placeholder="Email" />
-          <input id="password" placeholder="Password" />
-          <button onclick="reg()">Register</button>
-          <pre id="out"></pre>
-        </div>
-        <script>
-          async function reg() {
-            const res = await fetch("/register", {
-              method: "POST",
-              headers: {"Content-Type":"application/json"},
-              body: JSON.stringify({
-                email: email.value,
-                password: password.value
-              })
-            });
-            out.textContent = JSON.stringify(await res.json(),null,2);
-          }
-        </script>
-      </body>
-    </html>
-  `);
+  res.send(pageTemplate("Register", `
+    <div class="box">
+      <h1>Create account</h1>
+      <p style="color:#64748b;">Start with a virtual balance and test the betting flow.</p>
+      <input id="email" placeholder="Email" />
+      <input id="password" placeholder="Password" type="password" />
+      <button onclick="reg()">Register</button>
+      <pre id="out"></pre>
+    </div>
+
+    <script>
+      async function reg() {
+        const res = await fetch("/register", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({
+            email: email.value,
+            password: password.value
+          })
+        });
+        out.textContent = JSON.stringify(await res.json(), null, 2);
+      }
+    </script>
+  `));
 });
 
 // Страница логина
 app.get("/test-login", (req, res) => {
-  res.send(`
-    <html>
-      <head>
-        <title>Login test</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <style>
-          body { font-family: Arial, sans-serif; padding: 24px; background:#f5f7fb; }
-          .box { max-width: 420px; background:white; padding:24px; border-radius:16px; box-shadow:0 10px 28px rgba(15,23,42,0.06); }
-          input, button { width:100%; margin:8px 0; padding:14px; border-radius:10px; border:1px solid #dbe2ea; }
-          button { background:#2563eb; color:white; font-weight:bold; border:none; }
-          pre { background:#f4f4f4; padding:10px; white-space:pre-wrap; border-radius:10px; }
-        </style>
-      </head>
-      <body>
-        <div class="box">
-          <h1>Login test</h1>
-          <input id="email" />
-          <input id="password" />
-          <button onclick="login()">Login</button>
-          <pre id="out"></pre>
-        </div>
-        <script>
-          async function login() {
-            const res = await fetch("/login", {
-              method: "POST",
-              headers: {"Content-Type":"application/json"},
-              body: JSON.stringify({
-                email: email.value,
-                password: password.value
-              })
-            });
-            out.textContent = JSON.stringify(await res.json(),null,2);
-          }
-        </script>
-      </body>
-    </html>
-  `);
+  res.send(pageTemplate("Login", `
+    <div class="box">
+      <h1>Login</h1>
+      <p style="color:#64748b;">Login to place bets with your demo balance.</p>
+      <input id="email" placeholder="Email" />
+      <input id="password" placeholder="Password" type="password" />
+      <button onclick="login()">Login</button>
+      <pre id="out"></pre>
+    </div>
+
+    <script>
+      async function login() {
+        const res = await fetch("/login", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({
+            email: email.value,
+            password: password.value
+          })
+        });
+        out.textContent = JSON.stringify(await res.json(), null, 2);
+      }
+    </script>
+  `));
 });
 
 // Страница ставки
 app.get("/test-bet", (req, res) => {
-  res.send(`
-    <html>
-      <head>
-        <title>Bet test</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <style>
-          body { font-family: Arial, sans-serif; padding: 24px; background:#f5f7fb; }
-          .box { max-width: 420px; background:white; padding:24px; border-radius:16px; box-shadow:0 10px 28px rgba(15,23,42,0.06); }
-          input, button { width:100%; margin:8px 0; padding:14px; border-radius:10px; border:1px solid #dbe2ea; }
-          button { background:#2563eb; color:white; font-weight:bold; border:none; }
-          pre { background:#f4f4f4; padding:10px; white-space:pre-wrap; border-radius:10px; }
-        </style>
-      </head>
-      <body>
-        <div class="box">
-          <h1>Bet test</h1>
-          <p>Сначала логин через <a href="/test-login">/test-login</a></p>
-          <input id="match" placeholder="Match" />
-          <input id="sel" placeholder="Selection" />
-          <input id="odds" placeholder="Odds" />
-          <input id="stake" placeholder="Stake" />
-          <button onclick="bet()">Place bet</button>
-          <pre id="out"></pre>
-        </div>
-        <script>
-          async function bet() {
-            const res = await fetch("/place-bet", {
-              method: "POST",
-              headers: {"Content-Type":"application/json"},
-              body: JSON.stringify({
-                match_name: match.value,
-                selection: sel.value,
-                odds: Number(odds.value),
-                stake: Number(stake.value)
-              })
-            });
-            out.textContent = JSON.stringify(await res.json(),null,2);
-          }
-        </script>
-      </body>
-    </html>
-  `);
+  res.send(pageTemplate("Bet", `
+    <div class="box">
+      <h1>Place a bet</h1>
+      <p style="color:#64748b;">First login on the login page, then place a demo bet.</p>
+      <input id="match" placeholder="Match name (e.g. Real vs Barca)" />
+      <input id="sel" placeholder="Selection (e.g. Real win)" />
+      <input id="odds" placeholder="Odds (e.g. 2.0)" />
+      <input id="stake" placeholder="Stake (e.g. 100)" />
+      <button onclick="bet()">Place bet</button>
+      <pre id="out"></pre>
+    </div>
+
+    <script>
+      async function bet() {
+        const res = await fetch("/place-bet", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({
+            match_name: match.value,
+            selection: sel.value,
+            odds: Number(odds.value),
+            stake: Number(stake.value)
+          })
+        });
+        out.textContent = JSON.stringify(await res.json(), null, 2);
+      }
+    </script>
+  `));
 });
 
 // Страница settle
 app.get("/test-settle", (req, res) => {
-  res.send(`
-    <html>
-      <head>
-        <title>Settle bet test</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <style>
-          body { font-family: Arial, sans-serif; padding: 24px; background:#f5f7fb; }
-          .box { max-width: 420px; background:white; padding:24px; border-radius:16px; box-shadow:0 10px 28px rgba(15,23,42,0.06); }
-          input, select, button { width:100%; margin:8px 0; padding:14px; border-radius:10px; border:1px solid #dbe2ea; }
-          button { background:#2563eb; color:white; font-weight:bold; border:none; }
-          pre { background:#f4f4f4; padding:10px; white-space:pre-wrap; border-radius:10px; }
-        </style>
-      </head>
-      <body>
-        <div class="box">
-          <h1>Settle bet test</h1>
-          <input id="id" placeholder="Bet ID" />
-          <select id="status">
-            <option value="win">win</option>
-            <option value="lose">lose</option>
-          </select>
-          <button onclick="settle()">Settle</button>
-          <pre id="out"></pre>
-        </div>
-        <script>
-          async function settle() {
-            const res = await fetch("/settle-bet", {
-              method: "POST",
-              headers: {"Content-Type":"application/json"},
-              body: JSON.stringify({
-                betId: Number(id.value),
-                status: status.value
-              })
-            });
-            out.textContent = JSON.stringify(await res.json(),null,2);
-          }
-        </script>
-      </body>
-    </html>
-  `);
+  res.send(pageTemplate("Settle bet", `
+    <div class="box">
+      <h1>Settle bet</h1>
+      <p style="color:#64748b;">Enter bet ID and mark it as win or lose.</p>
+      <input id="id" placeholder="Bet ID" />
+      <select id="status">
+        <option value="win">win</option>
+        <option value="lose">lose</option>
+      </select>
+      <button onclick="settle()">Settle</button>
+      <pre id="out"></pre>
+    </div>
+
+    <script>
+      async function settle() {
+        const res = await fetch("/settle-bet", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({
+            betId: Number(id.value),
+            status: status.value
+          })
+        });
+        out.textContent = JSON.stringify(await res.json(), null, 2);
+      }
+    </script>
+  `));
 });
 
 // Админка
 app.get("/admin", (req, res) => {
-  res.send(`
-    <html>
-      <head>
-        <title>Admin panel</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            padding: 24px;
-            background: #f5f7fb;
-          }
-          .card {
-            border: 1px solid #dbe2ea;
-            background: white;
-            border-radius: 16px;
-            padding: 16px;
-            margin-bottom: 16px;
-            box-shadow: 0 10px 28px rgba(15,23,42,0.06);
-          }
-          button {
-            margin-right: 8px;
-            margin-top: 10px;
-            padding: 10px 14px;
-            border: none;
-            border-radius: 10px;
-            font-weight: bold;
-            cursor: pointer;
-          }
-          .win-btn {
-            background: #16a34a;
-            color: white;
-          }
-          .lose-btn {
-            background: #dc2626;
-            color: white;
-          }
-          .refresh-btn {
-            background: #2563eb;
-            color: white;
-          }
-        </style>
-      </head>
-      <body>
-        <h1>Admin panel</h1>
-        <button class="refresh-btn" onclick="loadBets()">Refresh bets</button>
-        <div id="betsBox" style="margin-top:20px;"></div>
+  res.send(pageTemplate("Admin panel", `
+    <div class="section">
+      <h1>Admin panel</h1>
+      <p style="color:#64748b;">Manage bets and settle them with one click.</p>
+      <button onclick="loadBets()">Refresh bets</button>
+      <div id="betsBox" style="margin-top:20px;"></div>
+    </div>
 
-        <script>
-          async function settleBet(betId, status) {
-            const res = await fetch("/settle-bet", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ betId, status })
-            });
+    <script>
+      async function settleBet(betId, status) {
+        const res = await fetch("/settle-bet", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ betId, status })
+        });
 
-            const data = await res.json();
-            alert(JSON.stringify(data, null, 2));
-            loadBets();
-          }
+        const data = await res.json();
+        alert(JSON.stringify(data, null, 2));
+        loadBets();
+      }
 
-          async function loadBets() {
-            const res = await fetch("/bets");
-            const data = await res.json();
+      async function loadBets() {
+        const res = await fetch("/bets");
+        const data = await res.json();
 
-            if (!data.ok) {
-              document.getElementById("betsBox").innerHTML = "<p>Error loading bets</p>";
-              return;
-            }
+        if (!data.ok) {
+          document.getElementById("betsBox").innerHTML = "<p>Error loading bets</p>";
+          return;
+        }
 
-            if (!data.bets.length) {
-              document.getElementById("betsBox").innerHTML = "<p>No bets yet</p>";
-              return;
-            }
+        if (!data.bets.length) {
+          document.getElementById("betsBox").innerHTML = "<p>No bets yet</p>";
+          return;
+        }
 
-            document.getElementById("betsBox").innerHTML = data.bets.map(bet => \`
-              <div class="card">
-                <div><strong>ID:</strong> \${bet.id}</div>
-                <div><strong>User:</strong> \${bet.email || bet.user_id}</div>
-                <div><strong>Match:</strong> \${bet.match_name}</div>
-                <div><strong>Selection:</strong> \${bet.selection}</div>
-                <div><strong>Odds:</strong> \${bet.odds}</div>
-                <div><strong>Stake:</strong> \${bet.stake}</div>
-                <div><strong>Possible win:</strong> \${bet.possible_win}</div>
-                <div><strong>Status:</strong> \${bet.status}</div>
-                <div>
-                  <button class="win-btn" onclick="settleBet(\${bet.id}, 'win')">WIN</button>
-                  <button class="lose-btn" onclick="settleBet(\${bet.id}, 'lose')">LOSE</button>
-                </div>
-              </div>
-            \`).join("");
-          }
+        document.getElementById("betsBox").innerHTML = data.bets.map(bet => \`
+          <div class="card">
+            <div><strong>ID:</strong> \${bet.id}</div>
+            <div><strong>User:</strong> \${bet.email || bet.user_id}</div>
+            <div><strong>Match:</strong> \${bet.match_name}</div>
+            <div><strong>Selection:</strong> \${bet.selection}</div>
+            <div><strong>Odds:</strong> \${bet.odds}</div>
+            <div><strong>Stake:</strong> \${bet.stake}</div>
+            <div><strong>Possible win:</strong> \${bet.possible_win}</div>
+            <div><strong>Status:</strong> \${bet.status}</div>
+            <div class="button-row" style="margin-top:10px;">
+              <button class="win-btn" onclick="settleBet(\${bet.id}, 'win')">WIN</button>
+              <button class="lose-btn" onclick="settleBet(\${bet.id}, 'lose')">LOSE</button>
+            </div>
+          </div>
+        \`).join("");
+      }
 
-          loadBets();
-        </script>
-      </body>
-    </html>
-  `);
+      loadBets();
+    </script>
+  `));
 });
 
 const port = process.env.PORT || 3000;
