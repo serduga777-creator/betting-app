@@ -1,9 +1,39 @@
-nst pool = require("./db");
+require("dotenv").config();
+
+const express = require("express");
+const cors = require("cors");
+const pool = require("./db");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+let currentUser = null;
+
+const matches = [
+  {
+    id: 1,
+    team1: "Real Madrid",
+    team2: "Barcelona",
+    league: "La Liga",
+    odds: { home: 2.1, draw: 3.5, away: 3.0 }
+  },
+  {
+    id: 2,
+    team1: "Man City",
+    team2: "Liverpool",
+    league: "Premier League",
+    odds: { home: 1.9, draw: 3.8, away: 3.4 }
+  },
+  {
+    id: 3,
+    team1: "Bayern",
+    team2: "Dortmund",
+    league: "Bundesliga",
+    odds: { home: 1.7, draw: 4.0, away: 4.5 }
+  }
+];
 
 function pageTemplate(title, content) {
   return `
@@ -25,6 +55,61 @@ function pageTemplate(title, content) {
             max-width: 1150px;
             margin: 0 auto;
             padding: 24px;
+          }
+
+          .topbar {
+            background: white;
+            border-radius: 18px;
+            padding: 14px 16px;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+          }
+
+          .topbar-left {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+          }
+
+          .topbar-pill {
+            background: #eff6ff;
+            color: #1d4ed8;
+            padding: 8px 12px;
+            border-radius: 999px;
+            font-size: 14px;
+            font-weight: bold;
+          }
+
+          .topbar-pill.gray {
+            background: #f1f5f9;
+            color: #334155;
+          }
+
+          .topbar-right {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+          }
+
+          .small-btn {
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-weight: bold;
+            cursor: pointer;
+          }
+
+          .small-btn.gray {
+            background: #475569;
           }
 
           .nav {
@@ -135,21 +220,6 @@ function pageTemplate(title, content) {
             padding: 24px;
             box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
             margin-bottom: 24px;
-          }
-
-          .quick-links {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-          }
-
-          .quick-links a {
-            text-decoration: none;
-            color: #1d4ed8;
-            background: #eff6ff;
-            padding: 10px 14px;
-            border-radius: 10px;
-            font-weight: bold;
           }
 
           .box {
@@ -343,18 +413,33 @@ function pageTemplate(title, content) {
             .subtitle { font-size: 16px; }
             .hero { padding: 28px 20px; }
             .odds-row { grid-template-columns: 1fr; }
+            .topbar {
+              align-items: flex-start;
+            }
           }
         </style>
       </head>
       <body>
         <div class="container">
+          <div class="topbar">
+            <div class="topbar-left">
+              <div class="topbar-pill gray">MVP demo</div>
+              <div id="topbarStatus" class="topbar-pill gray">Guest</div>
+              <div id="topbarEmail" class="topbar-pill" style="display:none;"></div>
+              <div id="topbarBalance" class="topbar-pill" style="display:none;"></div>
+            </div>
+
+            <div class="topbar-right">
+              <button id="topbarRefreshBtn" class="small-btn">Refresh user</button>
+              <button id="topbarLogoutBtn" class="small-btn gray">Logout</button>
+            </div>
+          </div>
+
           <div class="nav">
             <a href="/">Home</a>
-            <a href="/test-register">Register</a>
-            <a href="/test-login">Login</a>
+            <a href="/register">Register</a>
+            <a href="/login">Login</a>
             <a href="/matches">Matches</a>
-            <a href="/test-bet">Manual Bet</a>
-            <a href="/test-settle">Settle</a>
             <a href="/dashboard">Dashboard</a>
             <a href="/admin">Admin</a>
             <a href="/users">Users</a>
@@ -362,36 +447,56 @@ function pageTemplate(title, content) {
           </div>
           ${content}
         </div>
+
+        <script>
+          async function refreshTopbarUser() {
+            try {
+              const res = await fetch("/me");
+              const data = await res.json();
+
+              const status = document.getElementById("topbarStatus");
+              const email = document.getElementById("topbarEmail");
+              const balance = document.getElementById("topbarBalance");
+
+              if (!status || !email || !balance) return;
+
+              if (data.ok && data.user) {
+                status.textContent = "Logged in";
+                status.className = "topbar-pill";
+                email.style.display = "inline-block";
+                balance.style.display = "inline-block";
+                email.textContent = data.user.email;
+                balance.textContent = "Balance: " + data.user.balance;
+              } else {
+                status.textContent = "Guest";
+                status.className = "topbar-pill gray";
+                email.style.display = "none";
+                balance.style.display = "none";
+                email.textContent = "";
+                balance.textContent = "";
+              }
+            } catch (e) {}
+          }
+
+          async function logoutTopbarUser() {
+            try {
+              await fetch("/logout", { method: "POST" });
+              await refreshTopbarUser();
+              if (window.location.pathname === "/dashboard") {
+                window.location.reload();
+              }
+            } catch (e) {}
+          }
+
+          document.getElementById("topbarRefreshBtn")?.addEventListener("click", refreshTopbarUser);
+          document.getElementById("topbarLogoutBtn")?.addEventListener("click", logoutTopbarUser);
+
+          refreshTopbarUser();
+        </script>
       </body>
     </html>
   `;
 }
-
-let currentUser = null;
-
-const matches = [
-  {
-    id: 1,
-    team1: "Real Madrid",
-    team2: "Barcelona",
-    league: "La Liga",
-    odds: { home: 2.1, draw: 3.5, away: 3.0 }
-  },
-  {
-    id: 2,
-    team1: "Man City",
-    team2: "Liverpool",
-    league: "Premier League",
-    odds: { home: 1.9, draw: 3.8, away: 3.4 }
-  },
-  {
-    id: 3,
-    team1: "Bayern",
-    team2: "Dortmund",
-    league: "Bundesliga",
-    odds: { home: 1.7, draw: 4.0, away: 4.5 }
-  }
-];
 
 // Главная
 app.get("/", (req, res) => {
@@ -404,8 +509,8 @@ app.get("/", (req, res) => {
       </div>
 
       <div class="buttons">
-        <a class="btn btn-primary" href="/test-register">Create account</a>
-        <a class="btn btn-secondary" href="/test-login">Login</a>
+        <a class="btn btn-primary" href="/register">Create account</a>
+        <a class="btn btn-secondary" href="/login">Login</a>
         <a class="btn btn-secondary" href="/matches">Open matches</a>
         <a class="btn btn-secondary" href="/dashboard">My dashboard</a>
       </div>
@@ -418,12 +523,12 @@ app.get("/", (req, res) => {
       </div>
 
       <div class="card">
-        <h3>Match cards</h3>
-        <p>Choose ready-made demo matches instead of entering match data by hand.</p>
+        <h3>Live user bar</h3>
+        <p>The header now shows current user status, email, and balance across the site.</p>
       </div>
 
       <div class="card">
-        <h3>Bet slip</h3>
+        <h3>Match cards + bet slip</h3>
         <p>Select an outcome, enter your stake, and instantly see your possible win.</p>
       </div>
     </section>
@@ -473,7 +578,7 @@ app.get("/init-db", async (req, res) => {
   res.json({ ok: true });
 });
 
-// Register
+// Register API
 app.post("/register", async (req, res) => {
   const { email, password } = req.body;
 
@@ -485,7 +590,7 @@ app.post("/register", async (req, res) => {
   res.json({ ok: true, user: result.rows[0] });
 });
 
-// Login
+// Login API
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
@@ -525,6 +630,21 @@ app.post("/place-bet", async (req, res) => {
 
   if (!stake || Number(stake) <= 0) {
     return res.json({ ok: false, message: "Invalid stake" });
+  }
+
+  const freshUser = await pool.query(
+    "SELECT * FROM users WHERE id=$1",
+    [currentUser.id]
+  );
+
+  if (!freshUser.rows.length) {
+    return res.json({ ok: false, message: "User not found" });
+  }
+
+  const user = freshUser.rows[0];
+
+  if (Number(user.balance) < Number(stake)) {
+    return res.json({ ok: false, message: "Not enough balance" });
   }
 
   const possible_win = Number(odds) * Number(stake);
@@ -638,7 +758,7 @@ app.get("/dashboard", (req, res) => {
 
       <div class="button-row" style="margin-top:16px;">
         <button onclick="loadDashboard()">Refresh dashboard</button>
-        <button class="logout-btn" onclick="logout()">Logout</button>
+        <button class="logout-btn" onclick="logoutDashboard()">Logout</button>
       </div>
     </div>
 
@@ -657,7 +777,7 @@ app.get("/dashboard", (req, res) => {
               <h2>Not logged in</h2>
               <p>Please login first.</p>
               <div class="quick-links">
-                <a href="/test-login">Go to login</a>
+                <a href="/login">Go to login</a>
               </div>
             </div>
           \`;
@@ -720,7 +840,7 @@ app.get("/dashboard", (req, res) => {
         \`;
       }
 
-      async function logout() {
+      async function logoutDashboard() {
         await fetch("/logout", { method: "POST" });
         loadDashboard();
       }
@@ -737,7 +857,7 @@ app.post("/logout", (req, res) => {
 });
 
 // Register page
-app.get("/test-register", (req, res) => {
+app.get("/register", (req, res) => {
   res.send(pageTemplate("Register", `
     <div class="box">
       <h1>Create account</h1>
@@ -758,26 +878,34 @@ app.get("/test-register", (req, res) => {
             password: password.value
           })
         });
-        out.textContent = JSON.stringify(await res.json(), null, 2);
+
+        const data = await res.json();
+        out.textContent = JSON.stringify(data, null, 2);
+
+        if (data.ok) {
+          setTimeout(() => {
+            window.location.href = "/login";
+          }, 600);
+        }
       }
     </script>
   `));
 });
 
 // Login page
-app.get("/test-login", (req, res) => {
+app.get("/login", (req, res) => {
   res.send(pageTemplate("Login", `
     <div class="box">
       <h1>Login</h1>
       <p class="muted">Login to place bets and track your dashboard.</p>
       <input id="email" placeholder="Email" />
       <input id="password" placeholder="Password" type="password" />
-      <button onclick="login()">Login</button>
+      <button onclick="loginUser()">Login</button>
       <pre id="out"></pre>
     </div>
 
     <script>
-      async function login() {
+      async function loginUser() {
         const res = await fetch("/login", {
           method: "POST",
           headers: {"Content-Type":"application/json"},
@@ -786,6 +914,7 @@ app.get("/test-login", (req, res) => {
             password: password.value
           })
         });
+
         const data = await res.json();
         out.textContent = JSON.stringify(data, null, 2);
 
@@ -799,12 +928,12 @@ app.get("/test-login", (req, res) => {
   `));
 });
 
-// Matches with bet slip
+// Matches page
 app.get("/matches", (req, res) => {
   res.send(pageTemplate("Matches", `
     <div class="section">
       <h1>Matches</h1>
-      <p class="muted">Select an outcome, enter your stake in the bet slip, and place your bet.</p>
+      <p class="muted">Select an outcome, enter your stake, and place your bet through the bet slip.</p>
     </div>
 
     <div class="matches-layout">
@@ -913,70 +1042,7 @@ app.get("/matches", (req, res) => {
   `));
 });
 
-// Manual bet page
-app.get("/test-bet", (req, res) => {
-  res.send(pageTemplate("Manual Bet", `
-    <div class="box">
-      <h1>Manual bet</h1>
-      <p class="muted">Use this page if you want to enter bet data manually.</p>
-      <input id="match" placeholder="Match name (e.g. Real vs Barca)" />
-      <input id="sel" placeholder="Selection (e.g. Real win)" />
-      <input id="odds" placeholder="Odds (e.g. 2.0)" />
-      <input id="stake" placeholder="Stake (e.g. 100)" />
-      <button onclick="bet()">Place bet</button>
-      <pre id="out"></pre>
-    </div>
-
-    <script>
-      async function bet() {
-        const res = await fetch("/place-bet", {
-          method: "POST",
-          headers: {"Content-Type":"application/json"},
-          body: JSON.stringify({
-            match_name: match.value,
-            selection: sel.value,
-            odds: Number(odds.value),
-            stake: Number(stake.value)
-          })
-        });
-        out.textContent = JSON.stringify(await res.json(), null, 2);
-      }
-    </script>
-  `));
-});
-
-// Settle page
-app.get("/test-settle", (req, res) => {
-  res.send(pageTemplate("Settle bet", `
-    <div class="box">
-      <h1>Settle bet</h1>
-      <p class="muted">Enter bet ID and mark it as win or lose.</p>
-      <input id="id" placeholder="Bet ID" />
-      <select id="status">
-        <option value="win">win</option>
-        <option value="lose">lose</option>
-      </select>
-      <button onclick="settle()">Settle</button>
-      <pre id="out"></pre>
-    </div>
-
-    <script>
-      async function settle() {
-        const res = await fetch("/settle-bet", {
-          method: "POST",
-          headers: {"Content-Type":"application/json"},
-          body: JSON.stringify({
-            betId: Number(id.value),
-            status: status.value
-          })
-        });
-        out.textContent = JSON.stringify(await res.json(), null, 2);
-      }
-    </script>
-  `));
-});
-
-// Admin
+// Admin page
 app.get("/admin", (req, res) => {
   res.send(pageTemplate("Admin panel", `
     <div class="section">
@@ -1035,6 +1101,12 @@ app.get("/admin", (req, res) => {
     </script>
   `));
 });
+
+// Compatibility routes
+app.get("/test-register", (req, res) => res.redirect("/register"));
+app.get("/test-login", (req, res) => res.redirect("/login"));
+app.get("/test-bet", (req, res) => res.redirect("/matches"));
+app.get("/test-settle", (req, res) => res.redirect("/admin"));
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log("Server started"));
