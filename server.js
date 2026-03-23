@@ -24,6 +24,7 @@ app.get("/", (req, res) => {
           <li><a href="/test-register">Register test</a></li>
           <li><a href="/test-login">Login test</a></li>
           <li><a href="/test-bet">Bet test</a></li>
+          <li><a href="/me">My profile</a></li>
           <li><a href="/users">Users</a></li>
           <li><a href="/bets">Bets</a></li>
         </ul>
@@ -147,6 +148,11 @@ app.get("/test-login", (req, res) => {
           <button type="submit">Login</button>
         </form>
 
+        <p style="margin-top:16px;">
+          <a href="/me">Open my profile</a><br/>
+          <a href="/test-bet">Open bet page</a>
+        </p>
+
         <pre id="result" style="margin-top:20px; background:#f4f4f4; padding:10px; white-space:pre-wrap;"></pre>
 
         <script>
@@ -165,8 +171,69 @@ app.get("/test-login", (req, res) => {
             });
 
             const data = await response.json();
+
+            if (data.ok && data.user) {
+              localStorage.setItem("currentUser", JSON.stringify(data.user));
+            }
+
             document.getElementById("result").textContent = JSON.stringify(data, null, 2);
           });
+        </script>
+      </body>
+    </html>
+  `);
+});
+
+// Мой профиль
+app.get("/me", (req, res) => {
+  res.send(`
+    <html>
+      <head>
+        <title>My Profile</title>
+      </head>
+      <body style="font-family: Arial; padding: 20px;">
+        <h1>My profile</h1>
+
+        <div id="userBox" style="background:#f4f4f4; padding:10px; white-space:pre-wrap;"></div>
+
+        <p style="margin-top:16px;">
+          <button id="refreshBtn">Refresh balance</button>
+          <button id="logoutBtn">Logout</button>
+        </p>
+
+        <p>
+          <a href="/test-bet">Open bet page</a><br/>
+          <a href="/bets">Open all bets</a>
+        </p>
+
+        <script>
+          async function loadMe() {
+            const raw = localStorage.getItem("currentUser");
+            if (!raw) {
+              document.getElementById("userBox").textContent = "No logged in user";
+              return;
+            }
+
+            const currentUser = JSON.parse(raw);
+
+            const response = await fetch("/user/" + currentUser.id);
+            const data = await response.json();
+
+            if (data.ok && data.user) {
+              localStorage.setItem("currentUser", JSON.stringify(data.user));
+            }
+
+            document.getElementById("userBox").textContent = JSON.stringify(data, null, 2);
+          }
+
+          document.getElementById("refreshBtn").addEventListener("click", loadMe);
+
+          document.getElementById("logoutBtn").addEventListener("click", function () {
+            localStorage.removeItem("currentUser");
+            document.getElementById("userBox").textContent = "Logged out";
+          });
+
+          loadMe();
         </script>
       </body>
     </html>
@@ -183,8 +250,9 @@ app.get("/test-bet", (req, res) => {
       <body style="font-family: Arial; padding: 20px;">
         <h1>Bet test</h1>
 
+        <p id="currentUserBox" style="background:#f4f4f4; padding:10px; white-space:pre-wrap;"></p>
+
         <form id="betForm" style="display:flex; flex-direction:column; gap:10px; max-width:320px;">
-          <input id="userId" type="number" placeholder="User ID" required />
           <input id="matchName" type="text" placeholder="Match name" required />
           <input id="selection" type="text" placeholder="Selection" required />
           <input id="odds" type="number" step="0.01" placeholder="Odds" required />
@@ -195,10 +263,31 @@ app.get("/test-bet", (req, res) => {
         <pre id="result" style="margin-top:20px; background:#f4f4f4; padding:10px; white-space:pre-wrap;"></pre>
 
         <script>
+          function getCurrentUser() {
+            const raw = localStorage.getItem("currentUser");
+            return raw ? JSON.parse(raw) : null;
+          }
+
+          function renderCurrentUser() {
+            const user = getCurrentUser();
+            document.getElementById("currentUserBox").textContent = user
+              ? "Logged in as: " + user.email + " | balance: " + user.balance + " | userId: " + user.id
+              : "No logged in user. First open /test-login";
+          }
+
           document.getElementById("betForm").addEventListener("submit", async function (e) {
             e.preventDefault();
 
-            const userId = Number(document.getElementById("userId").value);
+            const currentUser = getCurrentUser();
+
+            if (!currentUser) {
+              document.getElementById("result").textContent = JSON.stringify({
+                ok: false,
+                error: "No logged in user. Open /test-login first."
+              }, null, 2);
+              return;
+            }
+
             const matchName = document.getElementById("matchName").value;
             const selection = document.getElementById("selection").value;
             const odds = Number(document.getElementById("odds").value);
@@ -210,7 +299,7 @@ app.get("/test-bet", (req, res) => {
                 "Content-Type": "application/json"
               },
               body: JSON.stringify({
-                userId,
+                userId: currentUser.id,
                 matchName,
                 selection,
                 odds,
@@ -219,8 +308,17 @@ app.get("/test-bet", (req, res) => {
             });
 
             const data = await response.json();
+
+            if (data.ok && typeof data.newBalance !== "undefined") {
+              currentUser.balance = data.newBalance;
+              localStorage.setItem("currentUser", JSON.stringify(currentUser));
+              renderCurrentUser();
+            }
+
             document.getElementById("result").textContent = JSON.stringify(data, null, 2);
           });
+
+          renderCurrentUser();
         </script>
       </body>
     </html>
@@ -428,7 +526,7 @@ app.get("/bets", async (req, res) => {
   }
 });
 
-// Баланс пользователя
+// Пользователь по id
 app.get("/user/:id", async (req, res) => {
   try {
     const result = await pool.query(
