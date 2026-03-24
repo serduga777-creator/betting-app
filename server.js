@@ -8,6 +8,8 @@ const pool = require("./db");
 
 const app = express();
 
+const ADMIN_EMAIL = "admin@test.com";
+
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
@@ -76,6 +78,10 @@ async function getUser(req) {
   return result.rows[0];
 }
 
+function isAdmin(user) {
+  return !!user && String(user.email || "").trim().toLowerCase() === ADMIN_EMAIL.toLowerCase();
+}
+
 function pageTemplate(title, content) {
   return `
 <!DOCTYPE html>
@@ -126,6 +132,11 @@ function pageTemplate(title, content) {
     .pill.gray {
       background: #f1f5f9;
       color: #334155;
+    }
+
+    .pill.admin {
+      background: #ede9fe;
+      color: #5b21b6;
     }
 
     .nav {
@@ -412,6 +423,14 @@ function pageTemplate(title, content) {
       font-weight: bold;
     }
 
+    .warn-box {
+      background: #fff7ed;
+      border: 2px solid #fdba74;
+      color: #9a3412;
+      border-radius: 18px;
+      padding: 18px;
+    }
+
     @media (max-width: 900px) {
       .two-cols {
         grid-template-columns: 1fr;
@@ -450,6 +469,7 @@ async function renderLayout(req, title, innerHtml) {
         <div class="pill ${user ? "" : "gray"}">${user ? "Logged in" : "Guest"}</div>
         ${user ? `<div class="pill">${user.email}</div>` : ""}
         ${user ? `<div class="pill">Balance: ${user.balance}</div>` : ""}
+        ${isAdmin(user) ? `<div class="pill admin">Admin</div>` : ""}
       </div>
 
       <div class="action-row" style="margin-top:14px;">
@@ -505,6 +525,17 @@ function loginRequiredInner(title) {
   `;
 }
 
+function accessDeniedInner() {
+  return `
+    <div class="card">
+      <h1>Access denied</h1>
+      <div class="warn-box">
+        This page is available only for admin user: <strong>${ADMIN_EMAIL}</strong>
+      </div>
+    </div>
+  `;
+}
+
 app.get("/", async (req, res) => {
   const html = await renderLayout(req, "Home", `
     <div class="hero">
@@ -523,7 +554,7 @@ app.get("/", async (req, res) => {
 
       <div class="card">
         <h3>Admin panel</h3>
-        <p class="muted">Admin can settle bets as WIN or LOSE with one click.</p>
+        <p class="muted">Only one admin email can settle bets as WIN or LOSE.</p>
       </div>
 
       <div class="card">
@@ -828,6 +859,12 @@ app.post("/place-bet", async (req, res) => {
 
 app.post("/settle-bet", async (req, res) => {
   try {
+    const user = await getUser(req);
+
+    if (!isAdmin(user)) {
+      return res.json({ ok: false, message: "Admin access required" });
+    }
+
     const { betId, status } = req.body;
 
     if (status !== "win" && status !== "lose") {
@@ -1235,8 +1272,14 @@ app.get("/balance-history", async (req, res) => {
 
 app.get("/admin", async (req, res) => {
   const user = await getUser(req);
+
   if (!user) {
     const html = await renderLayout(req, "Admin", loginRequiredInner("Admin"));
+    return res.send(html);
+  }
+
+  if (!isAdmin(user)) {
+    const html = await renderLayout(req, "Admin", accessDeniedInner());
     return res.send(html);
   }
 
@@ -1299,7 +1342,7 @@ app.get("/admin", async (req, res) => {
       }
 
       async function loadBets() {
-        const res = await fetch("/bets", {
+        const res = await fetch("/bets?format=json", {
           credentials: "include",
           cache: "no-store"
         });
@@ -1374,6 +1417,10 @@ app.get("/users", async (req, res) => {
       "SELECT id, email, balance, created_at FROM users ORDER BY id DESC"
     );
 
+    if (req.query.format === "json") {
+      return res.json({ ok: true, users: result.rows });
+    }
+
     const html = await renderLayout(req, "Users", `
       <div class="card">
         <h1>Users</h1>
@@ -1394,6 +1441,10 @@ app.get("/users", async (req, res) => {
 
     res.send(html);
   } catch (err) {
+    if (req.query.format === "json") {
+      return res.json({ ok: false, message: err.message });
+    }
+
     res.send(await renderLayout(req, "Users", `
       <div class="card">
         <h1>Users</h1>
@@ -1412,6 +1463,10 @@ app.get("/bets", async (req, res) => {
       LEFT JOIN users ON users.id = bets.user_id
       ORDER BY bets.id DESC
     `);
+
+    if (req.query.format === "json") {
+      return res.json({ ok: true, bets: result.rows });
+    }
 
     const html = await renderLayout(req, "Bets", `
       <div class="card">
@@ -1440,6 +1495,10 @@ app.get("/bets", async (req, res) => {
 
     res.send(html);
   } catch (err) {
+    if (req.query.format === "json") {
+      return res.json({ ok: false, message: err.message });
+    }
+
     res.send(await renderLayout(req, "Bets", `
       <div class="card">
         <h1>Bets</h1>
