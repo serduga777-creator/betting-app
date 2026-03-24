@@ -1,5 +1,3 @@
-require("dotenv").config();
-
 const express = require("express");
 const cors = require("cors");
 const session = require("express-session");
@@ -1490,6 +1488,916 @@ app.get("/admin", async (req, res) => {
 
         const data = await res.json();
         alert(JSON.stringify(data, null, 2));
+        loadBets();
+      }
+
+      async function loadBets() {
+        const res = await fetch("/bets", {
+          credentials: "include"
+        });
+        const data = await res.json();
+
+        if (!data.ok) {
+          document.getElementById("betsBox").innerHTML = "<p>Error loading bets</p>";
+          return;
+        }
+
+        if (!data.bets.length) {
+          document.getElementById("betsBox").innerHTML = "<p>No bets yet</p>";
+          return;
+        }
+
+        document.getElementById("betsBox").innerHTML = data.bets.map(bet => \`
+          <div class="bet-row">
+            <div><strong>ID:</strong> \${bet.id}</div>
+            <div><strong>User:</strong> \${bet.email || bet.user_id}</div>
+            <div><strong>Match:</strong> \${bet.match_name}</div>
+            <div><strong>Selection:</strong> \${bet.selection}</div>
+            <div><strong>Odds:</strong> \${bet.odds}</div>
+            <div><strong>Stake:</strong> \${bet.stake}</div>
+            <div><strong>Possible win:</strong> \${bet.possible_win}</div>
+            <div style="margin-top:8px;">
+              <span class="status-badge status-\${bet.status}">\${bet.status}</span>
+            </div>
+            <div class="button-row" style="margin-top:10px;">
+              <button class="win-btn" onclick="settleBet(\${bet.id}, 'win')">WIN</button>
+              <button class="lose-btn" onclick="settleBet(\${bet.id}, 'lose')">LOSE</button>
+            </div>
+          </div>
+        \`).join("");
+      }
+
+      loadBets();
+    </script>
+  `));
+});
+
+app.post("/logout", (req, res) => {
+  req.session.destroy(() => {
+    res.json({ ok: true });
+  });
+});
+
+app.get("/test-register", (req, res) => res.redirect("/register"));
+app.get("/test-login", (req, res) => res.redirect("/login"));
+app.get("/test-bet", (req, res) => res.redirect("/matches"));
+app.get("/test-settle", (req, res) => res.redirect("/admin"));
+
+const port = process.env.PORT || 3000;
+app.listen(port, () => console.log("Server started"));
+app.get("/", (req, res) => {
+  res.send(pageTemplate("Betting App", `
+    <section class="hero">
+      <div class="badge">Demo betting app</div>
+      <h1>Practice betting without real money</h1>
+      <div class="subtitle">
+        Create an account, use a virtual balance, place demo bets, and settle them in admin.
+      </div>
+
+      <div class="buttons">
+        <a class="btn btn-primary" href="/register">Create account</a>
+        <a class="btn btn-secondary" href="/login">Login</a>
+        <a class="btn btn-secondary" href="/matches">Open matches</a>
+        <a class="btn btn-secondary" href="/dashboard">Dashboard</a>
+      </div>
+    </section>
+  `));
+});
+
+app.get("/db-test", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT NOW() as now");
+    res.json({ ok: true, time: result.rows[0].now });
+  } catch (err) {
+    res.json({ ok: false, error: err.message });
+  }
+});
+
+app.get("/init-db", async (req, res) => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email TEXT UNIQUE,
+        password TEXT,
+        balance NUMERIC DEFAULT 1000,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS bets (
+        id SERIAL PRIMARY KEY,
+        user_id INT,
+        match_name TEXT,
+        selection TEXT,
+        odds FLOAT,
+        stake NUMERIC,
+        possible_win NUMERIC,
+        status TEXT DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS balance_history (
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL,
+        amount NUMERIC NOT NULL,
+        type TEXT NOT NULL,
+        description TEXT,
+        bet_id INT,
+        balance_after NUMERIC NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+app.post("/register", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.json({ ok: false, message: "Email and password required" });
+    }
+
+    const existing = await pool.query(
+      "SELECT id FROM users WHERE email = $1",
+      [email]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.json({ ok: false, message: "User already exists" });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const result = await pool.query(
+      "INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id, email, balance, created_at",
+      [email, passwordHash]
+    );
+
+    req.session.userId = result.rows[0].id;
+
+    res.json({ ok: true, user: result.rows[0] });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+app.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const result = await pool.query(
+      "SELECT * FROM users WHERE email = $1 LIMIT 1",
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.json({ ok: false, message: "Invalid credentials" });
+    }
+
+    const user = result.rows[0];
+    const isValid = await bcrypt.compare(password, user.password);
+
+    if (!isValid) {
+      return res.json({ ok: false, message: "Invalid credentials" });
+    }
+
+    req.session.userId = user.id;
+
+    res.json({
+      ok: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        balance: user.balance,
+        created_at: user.created_at
+      }
+    });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+app.get("/me", async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+
+    if (!user) {
+      return res.json({ ok: false, message: "Not logged in" });
+    }
+
+    res.json({ ok: true, user });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+app.post("/place-bet", async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+
+    if (!user) {
+      return res.json({ ok: false, message: "Not logged in" });
+    }
+
+    const { match_name, selection, odds, stake } = req.body;
+
+    if (!match_name || !selection || !odds || !stake) {
+      return res.json({ ok: false, message: "Missing bet data" });
+    }
+
+    if (Number(stake) <= 0) {
+      return res.json({ ok: false, message: "Invalid stake" });
+    }
+
+    if (Number(user.balance) < Number(stake)) {
+      return res.json({ ok: false, message: "Not enough balance" });
+    }
+
+    const possible_win = Number(odds) * Number(stake);
+    const newBalance = Number(user.balance) - Number(stake);
+
+    await pool.query(
+      "UPDATE users SET balance = balance - $1 WHERE id = $2",
+      [stake, user.id]
+    );
+
+    const betResult = await pool.query(
+      `INSERT INTO bets (user_id, match_name, selection, odds, stake, possible_win)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [user.id, match_name, selection, odds, stake, possible_win]
+    );
+
+    const bet = betResult.rows[0];
+
+    await pool.query(
+      `INSERT INTO balance_history (user_id, amount, type, description, bet_id, balance_after)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        user.id,
+        -Math.abs(Number(stake)),
+        "bet_stake",
+        `Stake for ${match_name} / ${selection}`,
+        bet.id,
+        newBalance
+      ]
+    );
+
+    res.json({
+      ok: true,
+      bet,
+      newBalance
+    });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+app.post("/settle-bet", async (req, res) => {
+  try {
+    const { betId, status } = req.body;
+
+    if (status !== "win" && status !== "lose") {
+      return res.json({ ok: false, message: "Invalid status" });
+    }
+
+    const betResult = await pool.query(
+      "SELECT * FROM bets WHERE id = $1",
+      [betId]
+    );
+
+    if (betResult.rows.length === 0) {
+      return res.json({ ok: false, message: "Bet not found" });
+    }
+
+    const bet = betResult.rows[0];
+
+    if (bet.status !== "pending") {
+      return res.json({ ok: false, message: "Bet already settled" });
+    }
+
+    await pool.query(
+      "UPDATE bets SET status = $1 WHERE id = $2",
+      [status, betId]
+    );
+
+    let newBalance = null;
+
+    if (status === "win") {
+      await pool.query(
+        "UPDATE users SET balance = balance + $1 WHERE id = $2",
+        [bet.possible_win, bet.user_id]
+      );
+
+      const userResult = await pool.query(
+        "SELECT balance FROM users WHERE id = $1",
+        [bet.user_id]
+      );
+
+      newBalance = Number(userResult.rows[0].balance);
+
+      await pool.query(
+        `INSERT INTO balance_history (user_id, amount, type, description, bet_id, balance_after)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          bet.user_id,
+          Number(bet.possible_win),
+          "bet_win",
+          `Win payout for ${bet.match_name} / ${bet.selection}`,
+          bet.id,
+          newBalance
+        ]
+      );
+    }
+
+    if (status === "lose") {
+      const userResult = await pool.query(
+        "SELECT balance FROM users WHERE id = $1",
+        [bet.user_id]
+      );
+      newBalance = Number(userResult.rows[0].balance);
+    }
+
+    res.json({
+      ok: true,
+      message: "Bet settled",
+      newBalance
+    });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+app.get("/users", async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT id, email, balance, created_at FROM users ORDER BY id DESC"
+    );
+    res.json({ ok: true, users: result.rows });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+app.get("/bets", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT bets.*, users.email
+      FROM bets
+      LEFT JOIN users ON users.id = bets.user_id
+      ORDER BY bets.id DESC
+    `);
+    res.json({ ok: true, bets: result.rows });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+app.get("/api/my-bets", async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+
+    if (!user) {
+      return res.json({ ok: false, message: "Not logged in" });
+    }
+
+    const result = await pool.query(
+      `SELECT *
+       FROM bets
+       WHERE user_id = $1
+       ORDER BY id DESC`,
+      [user.id]
+    );
+
+    res.json({ ok: true, bets: result.rows });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+app.get("/api/balance-history", async (req, res) => {
+  try {
+    const user = await getLoggedInUser(req);
+
+    if (!user) {
+      return res.json({ ok: false, message: "Not logged in" });
+    }
+
+    const result = await pool.query(
+      `SELECT *
+       FROM balance_history
+       WHERE user_id = $1
+       ORDER BY id DESC`,
+      [user.id]
+    );
+
+    res.json({ ok: true, history: result.rows });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+app.get("/dashboard", async (req, res) => {
+  const user = await getLoggedInUser(req);
+
+  if (!user) {
+    return res.send(pageTemplate("Dashboard", requireLoginBlock("Dashboard")));
+  }
+
+  res.send(pageTemplate("Dashboard", `
+    <div class="section">
+      <h1>My dashboard</h1>
+      <p class="muted">See your account, current balance, stats, profit, and all your bets in one place.</p>
+
+      <div class="button-row" style="margin-top:16px;">
+        <button onclick="loadDashboard()">Refresh dashboard</button>
+        <button class="logout-btn" onclick="logoutDashboard()">Logout</button>
+      </div>
+    </div>
+
+    <div id="dashboardContent">
+      <div class="section"><p>Loading...</p></div>
+    </div>
+
+    <script>
+      async function loadDashboard() {
+        const meRes = await fetch("/me", {
+          credentials: "include"
+        });
+        const meData = await meRes.json();
+
+        if (!meData.ok) {
+          document.getElementById("dashboardContent").innerHTML = \`
+            <div class="section">
+              <h2>Not logged in</h2>
+              <p>Please login first.</p>
+            </div>
+          \`;
+          return;
+        }
+
+        const betsRes = await fetch("/api/my-bets", {
+          credentials: "include"
+        });
+        const betsData = await betsRes.json();
+
+        if (!betsData.ok) {
+          document.getElementById("dashboardContent").innerHTML = \`
+            <div class="section">
+              <p>Could not load bets.</p>
+            </div>
+          \`;
+          return;
+        }
+
+        const historyRes = await fetch("/api/balance-history", {
+          credentials: "include"
+        });
+        const historyData = await historyRes.json();
+
+        const myBets = betsData.bets || [];
+        const myHistory = historyData.ok ? (historyData.history || []) : [];
+
+        const pendingCount = myBets.filter(b => b.status === "pending").length;
+        const winCount = myBets.filter(b => b.status === "win").length;
+        const loseCount = myBets.filter(b => b.status === "lose").length;
+
+        const totalStaked = myBets.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
+
+        const totalWon = myHistory
+          .filter(row => row.type === "bet_win")
+          .reduce((sum, row) => sum + Number(row.amount || 0), 0);
+
+        const profit = totalWon - totalStaked;
+
+        document.getElementById("dashboardContent").innerHTML = \`
+          <div class="section">
+            <h2>Account</h2>
+            <div class="account-grid">
+              <div class="stat stat-blue">
+                <div class="stat-label">Email</div>
+                <div class="stat-value" style="font-size:18px;">\${meData.user.email}</div>
+              </div>
+
+              <div class="stat stat-blue">
+                <div class="stat-label">Balance</div>
+                <div class="stat-value">\${meData.user.balance}</div>
+              </div>
+
+              <div class="stat stat-blue">
+                <div class="stat-label">User ID</div>
+                <div class="stat-value">\${meData.user.id}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>My stats</h2>
+            <div class="stats">
+              <div class="stat stat-blue">
+                <div class="stat-label">Total bets</div>
+                <div class="stat-value">\${myBets.length}</div>
+              </div>
+
+              <div class="stat stat-yellow">
+                <div class="stat-label">Pending</div>
+                <div class="stat-value">\${pendingCount}</div>
+              </div>
+
+              <div class="stat stat-green">
+                <div class="stat-label">Wins</div>
+                <div class="stat-value">\${winCount}</div>
+              </div>
+
+              <div class="stat stat-red">
+                <div class="stat-label">Loses</div>
+                <div class="stat-value">\${loseCount}</div>
+              </div>
+
+              <div class="stat stat-purple">
+                <div class="stat-label">Total staked</div>
+                <div class="stat-value">\${totalStaked}</div>
+              </div>
+
+              <div class="stat \${profit >= 0 ? "stat-green" : "stat-red"}">
+                <div class="stat-label">Profit</div>
+                <div class="stat-value \${profit >= 0 ? "profit-positive" : "profit-negative"}">\${profit}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>My bets</h2>
+            \${myBets.length === 0 ? "<p>No bets yet.</p>" : myBets.map(bet => \`
+              <div class="bet-row \${bet.status}">
+                <div class="bet-title">\${bet.match_name}</div>
+                <div class="bet-meta">Selection: \${bet.selection}</div>
+                <div><strong>ID:</strong> \${bet.id}</div>
+                <div><strong>Odds:</strong> \${bet.odds}</div>
+                <div><strong>Stake:</strong> \${bet.stake}</div>
+                <div><strong>Possible win:</strong> \${bet.possible_win}</div>
+                <div style="margin-top:10px;">
+                  <span class="status-badge status-\${bet.status}">\${bet.status}</span>
+                </div>
+              </div>
+            \`).join("")}
+          </div>
+        \`;
+      }
+
+      async function logoutDashboard() {
+        await fetch("/logout", {
+          method: "POST",
+          credentials: "include"
+        });
+        window.location.href = "/login";
+      }
+
+      loadDashboard();
+    </script>
+  `));
+});
+
+app.get("/balance-history", async (req, res) => {
+  const user = await getLoggedInUser(req);
+
+  if (!user) {
+    return res.send(pageTemplate("Balance history", requireLoginBlock("Balance history")));
+  }
+
+  res.send(pageTemplate("Balance history", `
+    <div class="section">
+      <h1>Balance history</h1>
+      <p class="muted">See every balance movement: stakes and winnings.</p>
+
+      <div class="button-row" style="margin-top:16px;">
+        <button onclick="loadHistory()">Refresh history</button>
+      </div>
+    </div>
+
+    <div id="historyContent">
+      <div class="section"><p>Loading...</p></div>
+    </div>
+
+    <script>
+      async function loadHistory() {
+        const res = await fetch("/api/balance-history", {
+          credentials: "include"
+        });
+        const data = await res.json();
+
+        if (!data.ok) {
+          document.getElementById("historyContent").innerHTML = \`
+            <div class="section">
+              <p>Could not load balance history.</p>
+            </div>
+          \`;
+          return;
+        }
+
+        const rows = data.history || [];
+
+        document.getElementById("historyContent").innerHTML = \`
+          <div class="section">
+            <h2>Entries</h2>
+            \${rows.length === 0 ? "<p>No balance changes yet.</p>" : rows.map(row => \`
+              <div class="history-row">
+                <div><strong>Type:</strong> \${row.type}</div>
+                <div><strong>Description:</strong> \${row.description || "-"}</div>
+                <div><strong>Bet ID:</strong> \${row.bet_id || "-"}</div>
+                <div><strong>Amount:</strong> <span class="\${Number(row.amount) >= 0 ? "amount-plus" : "amount-minus"}">\${row.amount}</span></div>
+                <div><strong>Balance after:</strong> \${row.balance_after}</div>
+                <div><strong>Created:</strong> \${row.created_at}</div>
+              </div>
+            \`).join("")}
+          </div>
+        \`;
+      }
+
+      loadHistory();
+    </script>
+  `));
+});
+
+app.get("/register", (req, res) => {
+  res.send(pageTemplate("Register", `
+    <div class="box">
+      <h1>Create account</h1>
+      <p class="muted">Start with a virtual balance and test the betting flow.</p>
+      <input id="email" placeholder="Email" />
+      <input id="password" placeholder="Password" type="password" />
+      <button onclick="registerUser()">Register</button>
+    </div>
+
+    <script>
+      async function registerUser() {
+        const res = await fetch("/register", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          credentials: "include",
+          body: JSON.stringify({
+            email: document.getElementById("email").value,
+            password: document.getElementById("password").value
+          })
+        });
+
+        const data = await res.json();
+
+        if (!data.ok) {
+          showToast(data.message || "Register failed", "error");
+          return;
+        }
+
+        showToast("Account created");
+
+        setTimeout(() => {
+          window.location.href = "/dashboard";
+        }, 500);
+      }
+    </script>
+  `));
+});
+
+app.get("/login", (req, res) => {
+  res.send(pageTemplate("Login", `
+    <div class="box">
+      <h1>Login</h1>
+      <p class="muted">Login to place bets and track your dashboard.</p>
+      <input id="email" placeholder="Email" />
+      <input id="password" placeholder="Password" type="password" />
+      <button onclick="loginUser()">Login</button>
+    </div>
+
+    <script>
+      async function loginUser() {
+        const res = await fetch("/login", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          credentials: "include",
+          body: JSON.stringify({
+            email: document.getElementById("email").value,
+            password: document.getElementById("password").value
+          })
+        });
+
+        const data = await res.json();
+
+        if (!data.ok) {
+          showToast(data.message || "Login failed", "error");
+          return;
+        }
+
+        showToast("Login successful");
+
+        setTimeout(() => {
+          window.location.href = "/dashboard";
+        }, 500);
+      }
+    </script>
+  `));
+});
+
+app.get("/matches", async (req, res) => {
+  const user = await getLoggedInUser(req);
+
+  if (!user) {
+    return res.send(pageTemplate("Matches", requireLoginBlock("Matches")));
+  }
+
+  res.send(pageTemplate("Matches", `
+    <div class="section">
+      <h1>Matches</h1>
+      <p class="muted">Choose an outcome, enter your stake, and place a bet from the bet slip.</p>
+    </div>
+
+    <div class="matches-layout">
+      <div class="matches-list-card">
+        <h2 style="margin-bottom:18px;">Available matches</h2>
+
+        ${demoMatches.map(match => `
+          <div class="match-card">
+            <div class="league-badge">${match.league}</div>
+            <div class="teams">${match.team1} vs ${match.team2}</div>
+            <div class="match-sub">Select one of the available outcomes below.</div>
+            <div class="match-divider"></div>
+
+            <div class="odds-row">
+              <button class="odds-btn" onclick="selectBet(${match.id}, 'Home', ${match.odds.home})">
+                ${match.team1}<br>${match.odds.home}
+              </button>
+
+              <button class="odds-btn secondary" onclick="selectBet(${match.id}, 'Draw', ${match.odds.draw})">
+                Draw<br>${match.odds.draw}
+              </button>
+
+              <button class="odds-btn dark" onclick="selectBet(${match.id}, 'Away', ${match.odds.away})">
+                ${match.team2}<br>${match.odds.away}
+              </button>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+
+      <div class="betslip">
+        <div class="betslip-title">Bet slip</div>
+        <div class="betslip-sub">Your selection will appear here.</div>
+
+        <div class="balance-box">
+          <div class="label">Current balance</div>
+          <div class="value" id="balanceBoxValue">Loading...</div>
+        </div>
+
+        <div id="emptySlip" class="empty-state">
+          Choose any match outcome to prepare your bet.
+        </div>
+
+        <div id="slipContent" style="display:none;">
+          <div class="selected-box">
+            <div style="font-size:13px; color:#64748b; margin-bottom:8px;">Your selected outcome</div>
+            <div style="font-size:24px; font-weight:bold;" id="slipMatch"></div>
+            <div class="muted" id="slipSelection" style="font-size:18px; margin-top:6px;"></div>
+            <div style="margin-top:10px;"><strong>Odds:</strong> <span id="slipOdds"></span></div>
+          </div>
+
+          <input id="slipStake" placeholder="Enter stake (e.g. 100)" oninput="updatePossibleWin()" />
+
+          <div class="selected-box">
+            <div style="font-size:13px; color:#64748b; margin-bottom:8px;">Potential return</div>
+            <div><strong>Possible win</strong></div>
+            <div style="font-size:30px; font-weight:bold; color:#1d4ed8;" id="possibleWin">0</div>
+          </div>
+
+          <button onclick="placeSlipBet()">Place bet</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const matches = ${JSON.stringify(demoMatches)};
+      let selectedBet = null;
+
+      async function loadBalanceBox() {
+        try {
+          const res = await fetch("/me", {
+            credentials: "include"
+          });
+          const data = await res.json();
+
+          if (data.ok && data.user) {
+            document.getElementById("balanceBoxValue").textContent = data.user.balance;
+          } else {
+            document.getElementById("balanceBoxValue").textContent = "-";
+          }
+        } catch (e) {
+          document.getElementById("balanceBoxValue").textContent = "-";
+        }
+      }
+
+      function selectBet(matchId, selection, odds) {
+        const match = matches.find(m => m.id === matchId);
+
+        const selectionText =
+          selection === "Home" ? match.team1 + " win" :
+          selection === "Away" ? match.team2 + " win" :
+          "Draw";
+
+        selectedBet = {
+          match_name: match.team1 + " vs " + match.team2,
+          selection: selectionText,
+          odds: Number(odds)
+        };
+
+        document.getElementById("emptySlip").style.display = "none";
+        document.getElementById("slipContent").style.display = "block";
+        document.getElementById("slipMatch").textContent = selectedBet.match_name;
+        document.getElementById("slipSelection").textContent = selectedBet.selection;
+        document.getElementById("slipOdds").textContent = selectedBet.odds;
+        document.getElementById("slipStake").value = "";
+        document.getElementById("possibleWin").textContent = "0";
+      }
+
+      function updatePossibleWin() {
+        if (!selectedBet) return;
+        const stake = Number(document.getElementById("slipStake").value || 0);
+        const win = stake * selectedBet.odds;
+        document.getElementById("possibleWin").textContent = String(win || 0);
+      }
+
+      async function placeSlipBet() {
+        if (!selectedBet) return;
+
+        const stake = Number(document.getElementById("slipStake").value || 0);
+
+        if (!stake || stake <= 0) {
+          showToast("Enter valid stake", "error");
+          return;
+        }
+
+        const res = await fetch("/place-bet", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          credentials: "include",
+          body: JSON.stringify({
+            match_name: selectedBet.match_name,
+            selection: selectedBet.selection,
+            odds: selectedBet.odds,
+            stake: stake
+          })
+        });
+
+        const data = await res.json();
+
+        if (!data.ok) {
+          showToast(data.message || "Error placing bet", "error");
+          return;
+        }
+
+        showToast("Bet placed successfully");
+        await loadBalanceBox();
+
+        document.getElementById("slipStake").value = "";
+        document.getElementById("possibleWin").textContent = "0";
+      }
+
+      loadBalanceBox();
+    </script>
+  `));
+});
+
+app.get("/admin", async (req, res) => {
+  res.send(pageTemplate("Admin panel", `
+    <div class="section">
+      <h1>Admin panel</h1>
+      <p class="muted">Manage bets and settle them with one click.</p>
+      <button onclick="loadBets()">Refresh bets</button>
+      <div id="betsBox" style="margin-top:20px;"></div>
+    </div>
+
+    <script>
+      async function settleBet(betId, status) {
+        const res = await fetch("/settle-bet", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ betId, status })
+        });
+
+        const data = await res.json();
+
+        if (!data.ok) {
+          showToast(data.message || "Settle failed", "error");
+          return;
+        }
+
+        showToast("Bet settled");
         loadBets();
       }
 
