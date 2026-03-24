@@ -1,4 +1,4 @@
-equire("dotenv").config();
+require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
@@ -90,13 +90,42 @@ function pageTemplate(title, content) {
       margin: 0;
       font-family: Arial, sans-serif;
       background: #f5f7fb;
-      color: #111827;
+      color: #0f172a;
     }
 
     .container {
-      max-width: 1100px;
+      max-width: 1150px;
       margin: 0 auto;
       padding: 20px;
+    }
+
+    .topbar {
+      background: white;
+      border-radius: 20px;
+      padding: 18px;
+      margin-bottom: 18px;
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+    }
+
+    .topbar-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .pill {
+      background: #eff6ff;
+      color: #1d4ed8;
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-weight: bold;
+      display: inline-block;
+    }
+
+    .pill.gray {
+      background: #f1f5f9;
+      color: #334155;
     }
 
     .nav {
@@ -111,36 +140,39 @@ function pageTemplate(title, content) {
       color: #1d4ed8;
       background: #eff6ff;
       padding: 10px 14px;
-      border-radius: 10px;
+      border-radius: 12px;
       font-weight: bold;
     }
 
     .card {
       background: #fff;
-      border-radius: 18px;
-      padding: 22px;
+      border-radius: 22px;
+      padding: 24px;
       margin-bottom: 20px;
       box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
     }
 
-    .topinfo {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
+    .hero {
+      background: linear-gradient(135deg, #0f172a, #1d4ed8);
+      color: white;
+      border-radius: 24px;
+      padding: 34px 26px;
+      box-shadow: 0 15px 35px rgba(15, 23, 42, 0.16);
       margin-bottom: 20px;
     }
 
-    .pill {
-      background: #eff6ff;
-      color: #1d4ed8;
-      padding: 8px 12px;
-      border-radius: 999px;
-      font-weight: bold;
+    .hero h1 {
+      margin: 0 0 12px 0;
+      font-size: 38px;
+      line-height: 1.1;
     }
 
-    .pill.gray {
-      background: #f1f5f9;
-      color: #334155;
+    .hero p {
+      margin: 0;
+      opacity: 0.95;
+      max-width: 700px;
+      line-height: 1.6;
+      font-size: 18px;
     }
 
     h1, h2, h3 {
@@ -149,13 +181,14 @@ function pageTemplate(title, content) {
 
     .muted {
       color: #64748b;
+      line-height: 1.6;
     }
 
     input, button {
       width: 100%;
       margin: 8px 0;
       padding: 14px;
-      border-radius: 10px;
+      border-radius: 12px;
       border: 1px solid #dbe2ea;
       font-size: 16px;
     }
@@ -166,6 +199,18 @@ function pageTemplate(title, content) {
       font-weight: bold;
       border: none;
       cursor: pointer;
+    }
+
+    .btn-gray {
+      background: #475569;
+    }
+
+    .btn-green {
+      background: #16a34a;
+    }
+
+    .btn-red {
+      background: #dc2626;
     }
 
     .message {
@@ -186,27 +231,56 @@ function pageTemplate(title, content) {
       color: #991b1b;
     }
 
-    .row {
+    .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+    }
+
+    .info-box {
+      background: #eff6ff;
+      border-radius: 16px;
+      padding: 18px;
+    }
+
+    .info-box h3 {
+      margin: 0 0 8px 0;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 14px;
     }
 
     .stat {
       background: #eff6ff;
-      border-radius: 14px;
-      padding: 16px;
+      border-radius: 16px;
+      padding: 18px;
     }
 
     .stat .label {
       color: #475569;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
+      font-size: 15px;
     }
 
     .stat .value {
       color: #1d4ed8;
-      font-size: 30px;
+      font-size: 28px;
       font-weight: bold;
+    }
+
+    .stat.win-stat {
+      background: #dcfce7;
+    }
+
+    .stat.lose-stat {
+      background: #fee2e2;
+    }
+
+    .stat.total-stat {
+      background: #ede9fe;
     }
 
     .two-cols {
@@ -215,11 +289,11 @@ function pageTemplate(title, content) {
       gap: 20px;
     }
 
-    .match {
+    .match-card {
       border: 1px solid #e5e7eb;
-      border-radius: 16px;
-      padding: 16px;
-      margin-bottom: 14px;
+      border-radius: 18px;
+      padding: 18px;
+      margin-bottom: 16px;
       background: linear-gradient(180deg, #ffffff, #f8fbff);
     }
 
@@ -234,11 +308,22 @@ function pageTemplate(title, content) {
       margin-bottom: 10px;
     }
 
+    .match-title {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .divider {
+      height: 1px;
+      background: #e5e7eb;
+      margin: 16px 0;
+    }
+
     .odds {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
       gap: 10px;
-      margin-top: 14px;
     }
 
     .odds button:nth-child(2) {
@@ -251,7 +336,7 @@ function pageTemplate(title, content) {
 
     .bet-row, .history-row {
       border: 1px solid #e5e7eb;
-      border-radius: 16px;
+      border-radius: 18px;
       padding: 16px;
       margin-bottom: 14px;
     }
@@ -274,19 +359,19 @@ function pageTemplate(title, content) {
     .bet-title {
       font-size: 22px;
       font-weight: bold;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
 
     .bet-meta {
-      font-size: 16px;
       color: #64748b;
-      margin-bottom: 10px;
+      font-size: 16px;
+      margin-bottom: 12px;
     }
 
     .status {
       display: inline-block;
-      margin-top: 10px;
-      padding: 6px 10px;
+      margin-top: 12px;
+      padding: 7px 11px;
       border-radius: 999px;
       font-size: 12px;
       font-weight: bold;
@@ -311,8 +396,8 @@ function pageTemplate(title, content) {
     .action-row {
       display: flex;
       gap: 10px;
-      margin-top: 16px;
       flex-wrap: wrap;
+      margin-top: 16px;
     }
 
     .action-row button {
@@ -338,11 +423,44 @@ function pageTemplate(title, content) {
       .odds {
         grid-template-columns: 1fr;
       }
+
+      .hero h1 {
+        font-size: 30px;
+      }
+
+      .hero p {
+        font-size: 16px;
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
+    ${content}
+  </div>
+</body>
+</html>
+  `;
+}
+
+async function renderLayout(req, title, innerHtml) {
+  const user = await getUser(req);
+
+  return pageTemplate(title, `
+    <div class="topbar">
+      <div class="topbar-row">
+        <div class="pill gray">MVP demo</div>
+        <div class="pill ${user ? "" : "gray"}">${user ? "Logged in" : "Guest"}</div>
+        ${user ? `<div class="pill">${user.email}</div>` : ""}
+        ${user ? `<div class="pill">Balance: ${user.balance}</div>` : ""}
+      </div>
+
+      <div class="action-row" style="margin-top:14px;">
+        <button onclick="refreshUser()">Refresh user</button>
+        <button class="btn-gray" onclick="logoutUser()">Logout</button>
+      </div>
+    </div>
+
     <div class="nav">
       <a href="/">Home</a>
       <a href="/register">Register</a>
@@ -351,39 +469,75 @@ function pageTemplate(title, content) {
       <a href="/dashboard">Dashboard</a>
       <a href="/balance-history">Balance history</a>
       <a href="/admin">Admin</a>
+      <a href="/users">Users</a>
+      <a href="/bets">Bets</a>
     </div>
-    ${content}
-  </div>
-</body>
-</html>
-  `;
-}
 
-function loginRequiredPage(title) {
-  return pageTemplate(title, `
-    <div class="card">
-      <h1>${title}</h1>
-      <p class="muted">Please login first.</p>
-      <a href="/login">Go to login</a>
-    </div>
+    ${innerHtml}
+
+    <script>
+      async function refreshUser() {
+        try {
+          const res = await fetch("/me", { credentials: "include", cache: "no-store" });
+          const data = await res.json();
+          window.location.reload();
+        } catch (e) {
+          window.location.reload();
+        }
+      }
+
+      async function logoutUser() {
+        await fetch("/logout", {
+          method: "POST",
+          credentials: "include"
+        });
+        window.location.href = "/login";
+      }
+    </script>
   `);
 }
 
-app.get("/", async (req, res) => {
-  const user = await getUser(req);
-
-  res.send(pageTemplate("Home", `
-    <div class="topinfo">
-      <div class="pill gray">MVP demo</div>
-      <div class="pill ${user ? "" : "gray"}">${user ? "Logged in" : "Guest"}</div>
-      ${user ? `<div class="pill">${user.email}</div><div class="pill">Balance: ${user.balance}</div>` : ""}
-    </div>
-
+function loginRequiredInner(title) {
+  return `
     <div class="card">
-      <h1>Practice betting without real money</h1>
-      <p class="muted">Simple demo app with register, login, matches, dashboard, admin settlement and balance history.</p>
+      <h1>${title}</h1>
+      <p class="muted">Please login first to access this page.</p>
+      <div class="action-row">
+        <a href="/login" style="text-decoration:none;">Go to login</a>
+      </div>
     </div>
-  `));
+  `;
+}
+
+app.get("/", async (req, res) => {
+  const html = await renderLayout(req, "Home", `
+    <div class="hero">
+      <h1>Practice betting without real money</h1>
+      <p>
+        Demo betting app with account system, virtual balance, matches, bet history,
+        balance history and admin settlement panel.
+      </p>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Protected pages</h3>
+        <p class="muted">Matches, dashboard and balance history require login.</p>
+      </div>
+
+      <div class="card">
+        <h3>Admin panel</h3>
+        <p class="muted">Admin can settle bets as WIN or LOSE with one click.</p>
+      </div>
+
+      <div class="card">
+        <h3>Balance history</h3>
+        <p class="muted">Every stake and every payout is stored separately.</p>
+      </div>
+    </div>
+  `);
+
+  res.send(html);
 });
 
 app.get("/init-db", async (req, res) => {
@@ -523,10 +677,11 @@ app.get("/me", async (req, res) => {
   }
 });
 
-app.get("/register", (req, res) => {
-  res.send(pageTemplate("Register", `
+app.get("/register", async (req, res) => {
+  const html = await renderLayout(req, "Register", `
     <div class="card">
       <h1>Create account</h1>
+      <p class="muted">Start with a virtual balance and test the full betting flow.</p>
       <input id="email" placeholder="Email" />
       <input id="password" type="password" placeholder="Password" />
       <button onclick="registerUser()">Register</button>
@@ -560,18 +715,22 @@ app.get("/register", (req, res) => {
         }
 
         showMessage("Account created successfully", "success");
+
         setTimeout(() => {
           window.location.href = "/dashboard";
         }, 500);
       }
     </script>
-  `));
+  `);
+
+  res.send(html);
 });
 
-app.get("/login", (req, res) => {
-  res.send(pageTemplate("Login", `
+app.get("/login", async (req, res) => {
+  const html = await renderLayout(req, "Login", `
     <div class="card">
       <h1>Login</h1>
+      <p class="muted">Login to place bets and track your dashboard.</p>
       <input id="email" placeholder="Email" />
       <input id="password" type="password" placeholder="Password" />
       <button onclick="loginUser()">Login</button>
@@ -605,12 +764,15 @@ app.get("/login", (req, res) => {
         }
 
         showMessage("Login successful", "success");
+
         setTimeout(() => {
           window.location.href = "/dashboard";
         }, 500);
       }
     </script>
-  `));
+  `);
+
+  res.send(html);
 });
 
 app.post("/place-bet", async (req, res) => {
@@ -724,9 +886,7 @@ app.post("/settle-bet", async (req, res) => {
           newBalance
         ]
       );
-    }
-
-    if (status === "lose") {
+    } else {
       const userResult = await pool.query(
         "SELECT balance FROM users WHERE id = $1",
         [bet.user_id]
@@ -774,24 +934,40 @@ app.get("/api/balance-history", async (req, res) => {
 
 app.get("/matches", async (req, res) => {
   const user = await getUser(req);
-  if (!user) return res.send(loginRequiredPage("Matches"));
+  if (!user) {
+    const html = await renderLayout(req, "Matches", loginRequiredInner("Matches"));
+    return res.send(html);
+  }
 
-  res.send(pageTemplate("Matches", `
+  const html = await renderLayout(req, "Matches", `
     <div class="card">
       <h1>Matches</h1>
-      <p class="muted">Choose an outcome and place a bet.</p>
+      <p class="muted">Choose an outcome, enter your stake, and place a bet from the bet slip.</p>
     </div>
 
     <div class="two-cols">
       <div class="card">
+        <h2>Available matches</h2>
+
         ${demoMatches.map(match => `
-          <div class="match">
+          <div class="match-card">
             <div class="league">${match.league}</div>
-            <h2>${match.team1} vs ${match.team2}</h2>
+            <div class="match-title">${match.team1} vs ${match.team2}</div>
+            <div class="muted">Select one of the available outcomes below.</div>
+            <div class="divider"></div>
+
             <div class="odds">
-              <button onclick="selectBet(${match.id}, 'Home', ${match.odds.home})">${match.team1}<br>${match.odds.home}</button>
-              <button onclick="selectBet(${match.id}, 'Draw', ${match.odds.draw})">Draw<br>${match.odds.draw}</button>
-              <button onclick="selectBet(${match.id}, 'Away', ${match.odds.away})">${match.team2}<br>${match.odds.away}</button>
+              <button onclick="selectBet(${match.id}, 'Home', ${match.odds.home})">
+                ${match.team1}<br>${match.odds.home}
+              </button>
+
+              <button onclick="selectBet(${match.id}, 'Draw', ${match.odds.draw})">
+                Draw<br>${match.odds.draw}
+              </button>
+
+              <button onclick="selectBet(${match.id}, 'Away', ${match.odds.away})">
+                ${match.team2}<br>${match.odds.away}
+              </button>
             </div>
           </div>
         `).join("")}
@@ -800,16 +976,18 @@ app.get("/matches", async (req, res) => {
       <div class="card">
         <h2>Bet slip</h2>
 
-        <div class="stat" style="margin-bottom:14px;">
-          <div class="label">Current balance</div>
-          <div class="value" id="balanceBox">${user.balance}</div>
+        <div class="stat" style="margin-bottom:16px; background:#f0fdf4; border:2px solid #bbf7d0;">
+          <div class="label" style="color:#166534;">Current balance</div>
+          <div class="value" id="balanceBox" style="color:#166534;">${user.balance}</div>
         </div>
 
-        <div id="emptySlip" class="muted">Choose an outcome first.</div>
+        <div id="emptySlip" class="info-box">
+          <p class="muted" style="margin:0;">Choose any match outcome to prepare your bet.</p>
+        </div>
 
         <div id="slipContent" style="display:none;">
           <div class="stat">
-            <div class="label">Selected</div>
+            <div class="label">Your selected outcome</div>
             <div class="value" style="font-size:18px;" id="slipMatch"></div>
             <div class="muted" id="slipSelection" style="margin-top:8px;"></div>
             <div style="margin-top:8px;"><strong>Odds:</strong> <span id="slipOdds"></span></div>
@@ -818,7 +996,8 @@ app.get("/matches", async (req, res) => {
           <input id="slipStake" placeholder="Stake" oninput="updateWin()" />
 
           <div class="stat">
-            <div class="label">Possible win</div>
+            <div class="label">Potential return</div>
+            <div style="font-size:18px; font-weight:bold; margin-bottom:8px;">Possible win</div>
             <div class="value" id="possibleWin">0</div>
           </div>
 
@@ -900,19 +1079,25 @@ app.get("/matches", async (req, res) => {
         showMessage("Bet placed successfully", "success");
       }
     </script>
-  `));
+  `);
+
+  res.send(html);
 });
 
 app.get("/dashboard", async (req, res) => {
   const user = await getUser(req);
-  if (!user) return res.send(loginRequiredPage("Dashboard"));
+  if (!user) {
+    const html = await renderLayout(req, "Dashboard", loginRequiredInner("Dashboard"));
+    return res.send(html);
+  }
 
-  res.send(pageTemplate("Dashboard", `
+  const html = await renderLayout(req, "Dashboard", `
     <div class="card">
       <h1>My dashboard</h1>
+      <p class="muted">See your account, current balance, and all your bets in one place.</p>
       <div class="action-row">
         <button onclick="loadDashboard()">Refresh dashboard</button>
-        <button onclick="logoutUser()" style="background:#475569;">Logout</button>
+        <button class="btn-gray" onclick="logoutUser()">Logout</button>
       </div>
     </div>
 
@@ -920,13 +1105,13 @@ app.get("/dashboard", async (req, res) => {
 
     <script>
       async function loadDashboard() {
-        const meRes = await fetch("/me", { credentials: "include" });
+        const meRes = await fetch("/me", { credentials: "include", cache: "no-store" });
         const meData = await meRes.json();
 
-        const betsRes = await fetch("/api/my-bets", { credentials: "include" });
+        const betsRes = await fetch("/api/my-bets", { credentials: "include", cache: "no-store" });
         const betsData = await betsRes.json();
 
-        const historyRes = await fetch("/api/balance-history", { credentials: "include" });
+        const historyRes = await fetch("/api/balance-history", { credentials: "include", cache: "no-store" });
         const historyData = await historyRes.json();
 
         if (!meData.ok || !betsData.ok) {
@@ -937,7 +1122,7 @@ app.get("/dashboard", async (req, res) => {
         const bets = betsData.bets || [];
         const history = historyData.ok ? historyData.history || [] : [];
 
-        const pending = bets.filter(b => "${normalizeStatus("pending")}" === String(b.status || "").trim().toLowerCase()).length;
+        const pending = bets.filter(b => String(b.status || "").trim().toLowerCase() === "pending").length;
         const wins = bets.filter(b => String(b.status || "").trim().toLowerCase() === "win").length;
         const loses = bets.filter(b => String(b.status || "").trim().toLowerCase() === "lose").length;
         const totalStaked = bets.reduce((s, b) => s + Number(b.stake || 0), 0);
@@ -948,20 +1133,29 @@ app.get("/dashboard", async (req, res) => {
 
         document.getElementById("dashboardContent").innerHTML = \`
           <h2>Account</h2>
-          <div class="row">
-            <div class="stat"><div class="label">Email</div><div class="value" style="font-size:18px;">\${meData.user.email}</div></div>
-            <div class="stat"><div class="label">Balance</div><div class="value">\${meData.user.balance}</div></div>
-            <div class="stat"><div class="label">User ID</div><div class="value">\${meData.user.id}</div></div>
+          <div class="stats">
+            <div class="stat">
+              <div class="label">Email</div>
+              <div class="value" style="font-size:18px;">\${meData.user.email}</div>
+            </div>
+            <div class="stat">
+              <div class="label">Balance</div>
+              <div class="value">\${meData.user.balance}</div>
+            </div>
+            <div class="stat">
+              <div class="label">User ID</div>
+              <div class="value">\${meData.user.id}</div>
+            </div>
           </div>
 
           <h2 style="margin-top:24px;">My stats</h2>
-          <div class="row">
+          <div class="stats">
             <div class="stat"><div class="label">Total bets</div><div class="value">\${bets.length}</div></div>
             <div class="stat"><div class="label">Pending</div><div class="value">\${pending}</div></div>
-            <div class="stat"><div class="label">Wins</div><div class="value">\${wins}</div></div>
-            <div class="stat"><div class="label">Loses</div><div class="value">\${loses}</div></div>
-            <div class="stat"><div class="label">Total staked</div><div class="value">\${totalStaked}</div></div>
-            <div class="stat"><div class="label">Profit</div><div class="value">\${profit}</div></div>
+            <div class="stat win-stat"><div class="label">Wins</div><div class="value">\${wins}</div></div>
+            <div class="stat lose-stat"><div class="label">Loses</div><div class="value">\${loses}</div></div>
+            <div class="stat total-stat"><div class="label">Total staked</div><div class="value">\${totalStaked}</div></div>
+            <div class="stat \${profit >= 0 ? "win-stat" : "lose-stat"}"><div class="label">Profit</div><div class="value">\${profit}</div></div>
           </div>
 
           <h2 style="margin-top:24px;">My bets</h2>
@@ -982,26 +1176,24 @@ app.get("/dashboard", async (req, res) => {
         \`;
       }
 
-      async function logoutUser() {
-        await fetch("/logout", {
-          method: "POST",
-          credentials: "include"
-        });
-        window.location.href = "/login";
-      }
-
       loadDashboard();
     </script>
-  `));
+  `);
+
+  res.send(html);
 });
 
 app.get("/balance-history", async (req, res) => {
   const user = await getUser(req);
-  if (!user) return res.send(loginRequiredPage("Balance history"));
+  if (!user) {
+    const html = await renderLayout(req, "Balance history", loginRequiredInner("Balance history"));
+    return res.send(html);
+  }
 
-  res.send(pageTemplate("Balance history", `
+  const html = await renderLayout(req, "Balance history", `
     <div class="card">
       <h1>Balance history</h1>
+      <p class="muted">See every balance movement: stakes and winnings.</p>
       <button onclick="loadHistory()" style="width:auto;">Refresh history</button>
     </div>
 
@@ -1010,12 +1202,14 @@ app.get("/balance-history", async (req, res) => {
     <script>
       async function loadHistory() {
         const res = await fetch("/api/balance-history", {
-          credentials: "include"
+          credentials: "include",
+          cache: "no-store"
         });
+
         const data = await res.json();
 
         if (!data.ok) {
-          document.getElementById("historyContent").innerHTML = "Could not load history";
+          document.getElementById("historyContent").innerHTML = "Could not load history.";
           return;
         }
 
@@ -1038,14 +1232,19 @@ app.get("/balance-history", async (req, res) => {
 
       loadHistory();
     </script>
-  `));
+  `);
+
+  res.send(html);
 });
 
 app.get("/admin", async (req, res) => {
   const user = await getUser(req);
-  if (!user) return res.send(loginRequiredPage("Admin"));
+  if (!user) {
+    const html = await renderLayout(req, "Admin", loginRequiredInner("Admin"));
+    return res.send(html);
+  }
 
-  res.send(pageTemplate("Admin", `
+  const html = await renderLayout(req, "Admin", `
     <div class="card">
       <h1>Admin panel</h1>
       <p class="muted">Manage bets and settle them with one click.</p>
@@ -1130,23 +1329,11 @@ app.get("/admin", async (req, res) => {
         document.getElementById("betsBox").innerHTML = \`
           <h2 style="margin-bottom:16px;">Bets overview</h2>
 
-          <div class="row" style="margin-bottom:20px;">
-            <div class="stat">
-              <div class="label">Total bets</div>
-              <div class="value">\${bets.length}</div>
-            </div>
-            <div class="stat">
-              <div class="label">Pending</div>
-              <div class="value">\${pending}</div>
-            </div>
-            <div class="stat">
-              <div class="label">Wins</div>
-              <div class="value">\${wins}</div>
-            </div>
-            <div class="stat">
-              <div class="label">Loses</div>
-              <div class="value">\${loses}</div>
-            </div>
+          <div class="stats" style="margin-bottom:22px;">
+            <div class="stat"><div class="label">Total bets</div><div class="value">\${bets.length}</div></div>
+            <div class="stat"><div class="label">Pending</div><div class="value">\${pending}</div></div>
+            <div class="stat win-stat"><div class="label">Wins</div><div class="value">\${wins}</div></div>
+            <div class="stat lose-stat"><div class="label">Loses</div><div class="value">\${loses}</div></div>
           </div>
 
           <h2 style="margin-bottom:16px;">All bets</h2>
@@ -1164,19 +1351,12 @@ app.get("/admin", async (req, res) => {
                 <div><strong>Odds:</strong> \${bet.odds}</div>
                 <div><strong>Stake:</strong> \${bet.stake}</div>
                 <div><strong>Possible win:</strong> \${bet.possible_win}</div>
-
-                <div style="margin-top:10px;">
-                  \${statusBadge(s)}
-                </div>
+                <div style="margin-top:10px;">\${statusBadge(s)}</div>
 
                 \${s === "pending" ? \`
                   <div class="action-row">
-                    <button onclick="settleBet(\${bet.id}, 'win')" style="background:#16a34a;">
-                      WIN
-                    </button>
-                    <button onclick="settleBet(\${bet.id}, 'lose')" style="background:#dc2626;">
-                      LOSE
-                    </button>
+                    <button class="btn-green" onclick="settleBet(\${bet.id}, 'win')">WIN</button>
+                    <button class="btn-red" onclick="settleBet(\${bet.id}, 'lose')">LOSE</button>
                   </div>
                 \` : ""}
               </div>
@@ -1187,7 +1367,9 @@ app.get("/admin", async (req, res) => {
 
       loadBets();
     </script>
-  `));
+  `);
+
+  res.send(html);
 });
 
 app.get("/users", async (req, res) => {
