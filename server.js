@@ -320,12 +320,72 @@ function pageTemplate(title, content) {
             color: #1d4ed8;
           }
 
+          .stat-blue {
+            background: #dbeafe;
+          }
+
+          .stat-yellow {
+            background: #fef3c7;
+          }
+
+          .stat-green {
+            background: #dcfce7;
+          }
+
+          .stat-red {
+            background: #fee2e2;
+          }
+
+          .stat-purple {
+            background: #ede9fe;
+          }
+
+          .profit-positive {
+            color: #166534;
+          }
+
+          .profit-negative {
+            color: #b91c1c;
+          }
+
+          .account-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+          }
+
           .bet-row, .history-row {
             border: 1px solid #e5e7eb;
             border-radius: 14px;
             padding: 16px;
             margin-bottom: 12px;
             background: #fff;
+          }
+
+          .bet-row.win {
+            border: 2px solid #bbf7d0;
+            background: #f0fdf4;
+          }
+
+          .bet-row.lose {
+            border: 2px solid #fecaca;
+            background: #fef2f2;
+          }
+
+          .bet-row.pending {
+            border: 2px solid #fde68a;
+            background: #fffbeb;
+          }
+
+          .bet-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 12px;
+          }
+
+          .bet-meta {
+            color: #64748b;
+            margin-bottom: 10px;
           }
 
           .amount-minus {
@@ -415,15 +475,31 @@ function pageTemplate(title, content) {
           }
 
           @media (max-width: 900px) {
-            .matches-layout { grid-template-columns: 1fr; }
-            .betslip { position: static; }
+            .matches-layout {
+              grid-template-columns: 1fr;
+            }
+
+            .betslip {
+              position: static;
+            }
           }
 
           @media (max-width: 640px) {
-            .container { padding: 16px; }
-            h1 { font-size: 30px; }
-            .hero { padding: 28px 20px; }
-            .odds-row { grid-template-columns: 1fr; }
+            .container {
+              padding: 16px;
+            }
+
+            h1 {
+              font-size: 30px;
+            }
+
+            .hero {
+              padding: 28px 20px;
+            }
+
+            .odds-row {
+              grid-template-columns: 1fr;
+            }
           }
         </style>
       </head>
@@ -531,6 +607,7 @@ app.get("/", (req, res) => {
       <div class="subtitle">
         Create an account, use a virtual balance, place demo bets, and settle them in admin.
       </div>
+
       <div class="buttons">
         <a class="btn btn-primary" href="/register">Create account</a>
         <a class="btn btn-secondary" href="/login">Login</a>
@@ -892,7 +969,7 @@ app.get("/dashboard", async (req, res) => {
   res.send(pageTemplate("Dashboard", `
     <div class="section">
       <h1>My dashboard</h1>
-      <p class="muted">See your account, current balance, and all your bets in one place.</p>
+      <p class="muted">See your account, current balance, stats, profit, and all your bets in one place.</p>
 
       <div class="button-row" style="margin-top:16px;">
         <button onclick="loadDashboard()">Refresh dashboard</button>
@@ -935,25 +1012,41 @@ app.get("/dashboard", async (req, res) => {
           return;
         }
 
+        const historyRes = await fetch("/api/balance-history", {
+          credentials: "include"
+        });
+        const historyData = await historyRes.json();
+
         const myBets = betsData.bets || [];
+        const myHistory = historyData.ok ? (historyData.history || []) : [];
 
         const pendingCount = myBets.filter(b => b.status === "pending").length;
         const winCount = myBets.filter(b => b.status === "win").length;
         const loseCount = myBets.filter(b => b.status === "lose").length;
 
+        const totalStaked = myBets.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
+
+        const totalWon = myHistory
+          .filter(row => row.type === "bet_win")
+          .reduce((sum, row) => sum + Number(row.amount || 0), 0);
+
+        const profit = totalWon - totalStaked;
+
         document.getElementById("dashboardContent").innerHTML = \`
           <div class="section">
             <h2>Account</h2>
-            <div class="stats">
-              <div class="stat">
+            <div class="account-grid">
+              <div class="stat stat-blue">
                 <div class="stat-label">Email</div>
                 <div class="stat-value" style="font-size:18px;">\${meData.user.email}</div>
               </div>
-              <div class="stat">
+
+              <div class="stat stat-blue">
                 <div class="stat-label">Balance</div>
                 <div class="stat-value">\${meData.user.balance}</div>
               </div>
-              <div class="stat">
+
+              <div class="stat stat-blue">
                 <div class="stat-label">User ID</div>
                 <div class="stat-value">\${meData.user.id}</div>
               </div>
@@ -963,21 +1056,34 @@ app.get("/dashboard", async (req, res) => {
           <div class="section">
             <h2>My stats</h2>
             <div class="stats">
-              <div class="stat">
+              <div class="stat stat-blue">
                 <div class="stat-label">Total bets</div>
                 <div class="stat-value">\${myBets.length}</div>
               </div>
-              <div class="stat">
+
+              <div class="stat stat-yellow">
                 <div class="stat-label">Pending</div>
                 <div class="stat-value">\${pendingCount}</div>
               </div>
-              <div class="stat">
+
+              <div class="stat stat-green">
                 <div class="stat-label">Wins</div>
                 <div class="stat-value">\${winCount}</div>
               </div>
-              <div class="stat">
+
+              <div class="stat stat-red">
                 <div class="stat-label">Loses</div>
                 <div class="stat-value">\${loseCount}</div>
+              </div>
+
+              <div class="stat stat-purple">
+                <div class="stat-label">Total staked</div>
+                <div class="stat-value">\${totalStaked}</div>
+              </div>
+
+              <div class="stat \${profit >= 0 ? "stat-green" : "stat-red"}">
+                <div class="stat-label">Profit</div>
+                <div class="stat-value \${profit >= 0 ? "profit-positive" : "profit-negative"}">\${profit}</div>
               </div>
             </div>
           </div>
@@ -985,14 +1091,14 @@ app.get("/dashboard", async (req, res) => {
           <div class="section">
             <h2>My bets</h2>
             \${myBets.length === 0 ? "<p>No bets yet.</p>" : myBets.map(bet => \`
-              <div class="bet-row">
+              <div class="bet-row \${bet.status}">
+                <div class="bet-title">\${bet.match_name}</div>
+                <div class="bet-meta">Selection: \${bet.selection}</div>
                 <div><strong>ID:</strong> \${bet.id}</div>
-                <div><strong>Match:</strong> \${bet.match_name}</div>
-                <div><strong>Selection:</strong> \${bet.selection}</div>
                 <div><strong>Odds:</strong> \${bet.odds}</div>
                 <div><strong>Stake:</strong> \${bet.stake}</div>
                 <div><strong>Possible win:</strong> \${bet.possible_win}</div>
-                <div style="margin-top:8px;">
+                <div style="margin-top:10px;">
                   <span class="status-badge status-\${bet.status}">\${bet.status}</span>
                 </div>
               </div>
