@@ -243,10 +243,6 @@ function pageTemplate(title, content) {
       padding: 18px;
     }
 
-    .info-box h3 {
-      margin: 0 0 8px 0;
-    }
-
     .stats {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -334,11 +330,12 @@ function pageTemplate(title, content) {
       background: #4338ca;
     }
 
-    .bet-row, .history-row {
+    .bet-row, .history-row, .user-row {
       border: 1px solid #e5e7eb;
       border-radius: 18px;
       padding: 16px;
       margin-bottom: 14px;
+      background: white;
     }
 
     .bet.pending-box {
@@ -478,8 +475,7 @@ async function renderLayout(req, title, innerHtml) {
     <script>
       async function refreshUser() {
         try {
-          const res = await fetch("/me", { credentials: "include", cache: "no-store" });
-          const data = await res.json();
+          await fetch("/me", { credentials: "include", cache: "no-store" });
           window.location.reload();
         } catch (e) {
           window.location.reload();
@@ -1377,9 +1373,34 @@ app.get("/users", async (req, res) => {
     const result = await pool.query(
       "SELECT id, email, balance, created_at FROM users ORDER BY id DESC"
     );
-    res.json({ ok: true, users: result.rows });
+
+    const html = await renderLayout(req, "Users", `
+      <div class="card">
+        <h1>Users</h1>
+        <p class="muted">List of all registered users.</p>
+      </div>
+
+      <div class="card">
+        ${result.rows.length === 0 ? "<p>No users yet.</p>" : result.rows.map(user => `
+          <div class="user-row">
+            <div><strong>ID:</strong> ${user.id}</div>
+            <div><strong>Email:</strong> ${user.email}</div>
+            <div><strong>Balance:</strong> ${user.balance}</div>
+            <div><strong>Created:</strong> ${user.created_at}</div>
+          </div>
+        `).join("")}
+      </div>
+    `);
+
+    res.send(html);
   } catch (err) {
-    res.json({ ok: false, message: err.message });
+    res.send(await renderLayout(req, "Users", `
+      <div class="card">
+        <h1>Users</h1>
+        <p class="muted">Could not load users.</p>
+        <div class="message error" style="display:block;">${err.message}</div>
+      </div>
+    `));
   }
 });
 
@@ -1392,9 +1413,40 @@ app.get("/bets", async (req, res) => {
       ORDER BY bets.id DESC
     `);
 
-    res.json({ ok: true, bets: result.rows });
+    const html = await renderLayout(req, "Bets", `
+      <div class="card">
+        <h1>Bets</h1>
+        <p class="muted">List of all bets in the system.</p>
+      </div>
+
+      <div class="card">
+        ${result.rows.length === 0 ? "<p>No bets yet.</p>" : result.rows.map(bet => {
+          const s = normalizeStatus(bet.status);
+          return `
+            <div class="bet-row bet ${s}-box">
+              <div class="bet-title">${bet.match_name}</div>
+              <div class="bet-meta">Selection: ${bet.selection}</div>
+              <div><strong>ID:</strong> ${bet.id}</div>
+              <div><strong>User:</strong> ${bet.email || bet.user_id}</div>
+              <div><strong>Odds:</strong> ${bet.odds}</div>
+              <div><strong>Stake:</strong> ${bet.stake}</div>
+              <div><strong>Possible win:</strong> ${bet.possible_win}</div>
+              <div><span class="status ${s}">${s}</span></div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    `);
+
+    res.send(html);
   } catch (err) {
-    res.json({ ok: false, message: err.message });
+    res.send(await renderLayout(req, "Bets", `
+      <div class="card">
+        <h1>Bets</h1>
+        <p class="muted">Could not load bets.</p>
+        <div class="message error" style="display:block;">${err.message}</div>
+      </div>
+    `));
   }
 });
 
