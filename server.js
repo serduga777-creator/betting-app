@@ -320,25 +320,11 @@ function pageTemplate(title, content) {
             color: #1d4ed8;
           }
 
-          .stat-blue {
-            background: #dbeafe;
-          }
-
-          .stat-yellow {
-            background: #fef3c7;
-          }
-
-          .stat-green {
-            background: #dcfce7;
-          }
-
-          .stat-red {
-            background: #fee2e2;
-          }
-
-          .stat-purple {
-            background: #ede9fe;
-          }
+          .stat-blue { background: #dbeafe; }
+          .stat-yellow { background: #fef3c7; }
+          .stat-green { background: #dcfce7; }
+          .stat-red { background: #fee2e2; }
+          .stat-purple { background: #ede9fe; }
 
           .profit-positive {
             color: #166534;
@@ -400,63 +386,103 @@ function pageTemplate(title, content) {
 
           .matches-layout {
             display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 18px;
+            grid-template-columns: 1.8fr 1fr;
+            gap: 20px;
             align-items: start;
           }
 
-          .match-card {
+          .matches-list-card {
             background: white;
-            border-radius: 18px;
+            border-radius: 20px;
             padding: 22px;
             box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+          }
+
+          .match-card {
+            background: linear-gradient(180deg, #ffffff, #f8fbff);
+            border: 1px solid #e5e7eb;
+            border-radius: 18px;
+            padding: 20px;
             margin-bottom: 16px;
           }
 
+          .league-badge {
+            display: inline-block;
+            background: #eef2ff;
+            color: #4338ca;
+            font-size: 13px;
+            font-weight: bold;
+            padding: 6px 10px;
+            border-radius: 999px;
+            margin-bottom: 12px;
+          }
+
           .teams {
-            font-size: 22px;
+            font-size: 24px;
             font-weight: bold;
             margin-bottom: 8px;
           }
 
           .match-sub {
             color: #64748b;
-            margin-bottom: 16px;
+            margin-bottom: 18px;
+          }
+
+          .match-divider {
+            height: 1px;
+            background: #e5e7eb;
+            margin: 14px 0 18px;
           }
 
           .odds-row {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
-            gap: 10px;
+            gap: 12px;
           }
 
           .odds-btn {
             background: #1d4ed8;
             color: white;
             border: none;
-            border-radius: 12px;
-            padding: 12px 10px;
+            border-radius: 14px;
+            padding: 16px 12px;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 15px;
             line-height: 1.4;
+            transition: transform 0.15s ease, opacity 0.15s ease;
           }
 
-          .odds-btn.secondary { background: #0f766e; }
-          .odds-btn.dark { background: #4338ca; }
+          .odds-btn:hover {
+            transform: translateY(-1px);
+            opacity: 0.95;
+          }
+
+          .odds-btn.secondary {
+            background: #0f766e;
+          }
+
+          .odds-btn.dark {
+            background: #4338ca;
+          }
 
           .betslip {
             position: sticky;
             top: 20px;
             background: white;
-            border-radius: 18px;
+            border-radius: 20px;
             padding: 22px;
             box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
           }
 
           .betslip-title {
-            font-size: 22px;
+            font-size: 24px;
             font-weight: bold;
-            margin-bottom: 16px;
+            margin-bottom: 8px;
+          }
+
+          .betslip-sub {
+            color: #64748b;
+            margin-bottom: 18px;
           }
 
           .selected-box {
@@ -464,6 +490,33 @@ function pageTemplate(title, content) {
             border-radius: 14px;
             padding: 14px;
             margin-bottom: 14px;
+          }
+
+          .balance-box {
+            background: #eefbf3;
+            border: 1px solid #bbf7d0;
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 14px;
+          }
+
+          .balance-box .label {
+            color: #166534;
+            font-size: 14px;
+            margin-bottom: 6px;
+          }
+
+          .balance-box .value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #166534;
+          }
+
+          .empty-state {
+            padding: 18px;
+            border-radius: 14px;
+            background: #f8fafc;
+            color: #64748b;
           }
 
           pre {
@@ -499,6 +552,10 @@ function pageTemplate(title, content) {
 
             .odds-row {
               grid-template-columns: 1fr;
+            }
+
+            .teams {
+              font-size: 22px;
             }
           }
         </style>
@@ -1263,23 +1320,29 @@ app.get("/matches", async (req, res) => {
   res.send(pageTemplate("Matches", `
     <div class="section">
       <h1>Matches</h1>
-      <p class="muted">Select an outcome, enter your stake, and place your bet through the bet slip.</p>
+      <p class="muted">Choose an outcome, enter your stake, and place a bet from the bet slip.</p>
     </div>
 
     <div class="matches-layout">
-      <div>
+      <div class="matches-list-card">
+        <h2 style="margin-bottom:18px;">Available matches</h2>
+
         ${demoMatches.map(match => `
           <div class="match-card">
+            <div class="league-badge">${match.league}</div>
             <div class="teams">${match.team1} vs ${match.team2}</div>
-            <div class="match-sub">${match.league}</div>
+            <div class="match-sub">Select one of the available outcomes below.</div>
+            <div class="match-divider"></div>
 
             <div class="odds-row">
               <button class="odds-btn" onclick="selectBet(${match.id}, 'Home', ${match.odds.home})">
                 ${match.team1}<br>${match.odds.home}
               </button>
+
               <button class="odds-btn secondary" onclick="selectBet(${match.id}, 'Draw', ${match.odds.draw})">
                 Draw<br>${match.odds.draw}
               </button>
+
               <button class="odds-btn dark" onclick="selectBet(${match.id}, 'Away', ${match.odds.away})">
                 ${match.team2}<br>${match.odds.away}
               </button>
@@ -1290,20 +1353,31 @@ app.get("/matches", async (req, res) => {
 
       <div class="betslip">
         <div class="betslip-title">Bet slip</div>
-        <div id="emptySlip" class="muted">Choose an outcome to add it here.</div>
+        <div class="betslip-sub">Your selection will appear here.</div>
+
+        <div class="balance-box">
+          <div class="label">Current balance</div>
+          <div class="value" id="balanceBoxValue">Loading...</div>
+        </div>
+
+        <div id="emptySlip" class="empty-state">
+          Choose any match outcome to prepare your bet.
+        </div>
 
         <div id="slipContent" style="display:none;">
           <div class="selected-box">
-            <div><strong id="slipMatch"></strong></div>
-            <div class="muted" id="slipSelection"></div>
-            <div style="margin-top:8px;"><strong>Odds:</strong> <span id="slipOdds"></span></div>
+            <div style="font-size:13px; color:#64748b; margin-bottom:8px;">Your selected outcome</div>
+            <div style="font-size:24px; font-weight:bold;" id="slipMatch"></div>
+            <div class="muted" id="slipSelection" style="font-size:18px; margin-top:6px;"></div>
+            <div style="margin-top:10px;"><strong>Odds:</strong> <span id="slipOdds"></span></div>
           </div>
 
-          <input id="slipStake" placeholder="Stake (e.g. 100)" oninput="updatePossibleWin()" />
+          <input id="slipStake" placeholder="Enter stake (e.g. 100)" oninput="updatePossibleWin()" />
 
           <div class="selected-box">
+            <div style="font-size:13px; color:#64748b; margin-bottom:8px;">Potential return</div>
             <div><strong>Possible win</strong></div>
-            <div style="font-size:26px; font-weight:bold; color:#1d4ed8;" id="possibleWin">0</div>
+            <div style="font-size:30px; font-weight:bold; color:#1d4ed8;" id="possibleWin">0</div>
           </div>
 
           <button onclick="placeSlipBet()">Place bet</button>
@@ -1318,6 +1392,23 @@ app.get("/matches", async (req, res) => {
     <script>
       const matches = ${JSON.stringify(demoMatches)};
       let selectedBet = null;
+
+      async function loadBalanceBox() {
+        try {
+          const res = await fetch("/me", {
+            credentials: "include"
+          });
+          const data = await res.json();
+
+          if (data.ok && data.user) {
+            document.getElementById("balanceBoxValue").textContent = data.user.balance;
+          } else {
+            document.getElementById("balanceBoxValue").textContent = "-";
+          }
+        } catch (e) {
+          document.getElementById("balanceBoxValue").textContent = "-";
+        }
+      }
 
       function selectBet(matchId, selection, odds) {
         const match = matches.find(m => m.id === matchId);
@@ -1368,7 +1459,13 @@ app.get("/matches", async (req, res) => {
 
         const data = await res.json();
         document.getElementById("out").textContent = JSON.stringify(data, null, 2);
+
+        if (data.ok) {
+          await loadBalanceBox();
+        }
       }
+
+      loadBalanceBox();
     </script>
   `));
 });
