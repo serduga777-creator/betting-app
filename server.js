@@ -11,7 +11,6 @@ const app = express();
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
-// убираем кэш, чтобы телефон не показывал старую страницу
 app.use((req, res, next) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.setHeader("Pragma", "no-cache");
@@ -57,6 +56,10 @@ const demoMatches = [
   }
 ];
 
+function normalizeStatus(status) {
+  return String(status || "").trim().toLowerCase();
+}
+
 async function getUser(req) {
   if (!req.session.userId) return null;
 
@@ -75,291 +78,284 @@ async function getUser(req) {
 
 function pageTemplate(title, content) {
   return `
-  <!DOCTYPE html>
-  <html>
-    <head>
-      <title>${title}</title>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <style>
-        * { box-sizing: border-box; }
+<!DOCTYPE html>
+<html>
+<head>
+  <title>${title}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * { box-sizing: border-box; }
 
-        body {
-          margin: 0;
-          font-family: Arial, sans-serif;
-          background: #f5f7fb;
-          color: #111827;
-        }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f5f7fb;
+      color: #111827;
+    }
 
-        .container {
-          max-width: 1100px;
-          margin: 0 auto;
-          padding: 20px;
-        }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px;
+    }
 
-        .card {
-          background: #fff;
-          border-radius: 18px;
-          padding: 22px;
-          margin-bottom: 20px;
-          box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
-        }
+    .nav {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
 
-        .nav {
-          display: flex;
-          gap: 10px;
-          flex-wrap: wrap;
-          margin-bottom: 20px;
-        }
+    .nav a {
+      text-decoration: none;
+      color: #1d4ed8;
+      background: #eff6ff;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: bold;
+    }
 
-        .nav a {
-          text-decoration: none;
-          color: #1d4ed8;
-          background: #eff6ff;
-          padding: 10px 14px;
-          border-radius: 10px;
-          font-weight: bold;
-        }
+    .card {
+      background: #fff;
+      border-radius: 18px;
+      padding: 22px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+    }
 
-        h1, h2, h3 {
-          margin-top: 0;
-        }
+    .topinfo {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
 
-        input, button {
-          width: 100%;
-          margin: 8px 0;
-          padding: 14px;
-          border-radius: 10px;
-          border: 1px solid #dbe2ea;
-          font-size: 16px;
-        }
+    .pill {
+      background: #eff6ff;
+      color: #1d4ed8;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-weight: bold;
+    }
 
-        button {
-          background: #2563eb;
-          color: white;
-          font-weight: bold;
-          border: none;
-          cursor: pointer;
-        }
+    .pill.gray {
+      background: #f1f5f9;
+      color: #334155;
+    }
 
-        .muted {
-          color: #64748b;
-        }
+    h1, h2, h3 {
+      margin-top: 0;
+    }
 
-        .row {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-          gap: 14px;
-        }
+    .muted {
+      color: #64748b;
+    }
 
-        .stat {
-          background: #eff6ff;
-          border-radius: 14px;
-          padding: 16px;
-        }
+    input, button {
+      width: 100%;
+      margin: 8px 0;
+      padding: 14px;
+      border-radius: 10px;
+      border: 1px solid #dbe2ea;
+      font-size: 16px;
+    }
 
-        .stat .label {
-          color: #475569;
-          margin-bottom: 8px;
-        }
+    button {
+      background: #2563eb;
+      color: white;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+    }
 
-        .stat .value {
-          color: #1d4ed8;
-          font-size: 30px;
-          font-weight: bold;
-        }
+    .message {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-weight: bold;
+      display: none;
+    }
 
-        .match {
-          border: 1px solid #e5e7eb;
-          border-radius: 16px;
-          padding: 16px;
-          margin-bottom: 14px;
-          background: linear-gradient(180deg, #ffffff, #f8fbff);
-        }
+    .message.success {
+      background: #dcfce7;
+      color: #166534;
+    }
 
-        .league {
-          display: inline-block;
-          background: #eef2ff;
-          color: #4338ca;
-          border-radius: 999px;
-          padding: 6px 10px;
-          font-size: 12px;
-          font-weight: bold;
-          margin-bottom: 10px;
-        }
+    .message.error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
 
-        .odds {
-          display: grid;
-          grid-template-columns: 1fr 1fr 1fr;
-          gap: 10px;
-          margin-top: 14px;
-        }
+    .row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
 
-        .odds button:nth-child(2) {
-          background: #0f766e;
-        }
+    .stat {
+      background: #eff6ff;
+      border-radius: 14px;
+      padding: 16px;
+    }
 
-        .odds button:nth-child(3) {
-          background: #4338ca;
-        }
+    .stat .label {
+      color: #475569;
+      margin-bottom: 8px;
+    }
 
-        .status {
-          display: inline-block;
-          margin-top: 10px;
-          padding: 6px 10px;
-          border-radius: 999px;
-          font-size: 12px;
-          font-weight: bold;
-          text-transform: uppercase;
-        }
+    .stat .value {
+      color: #1d4ed8;
+      font-size: 30px;
+      font-weight: bold;
+    }
 
-        .pending {
-          background: #fef3c7;
-          color: #92400e;
-        }
+    .two-cols {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 20px;
+    }
 
-        .win {
-          background: #dcfce7;
-          color: #166534;
-        }
+    .match {
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 14px;
+      background: linear-gradient(180deg, #ffffff, #f8fbff);
+    }
 
-        .lose {
-          background: #fee2e2;
-          color: #991b1b;
-        }
+    .league {
+      display: inline-block;
+      background: #eef2ff;
+      color: #4338ca;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
 
-        .bet.pending-box {
-          border: 2px solid #fde68a;
-          background: #fffbeb;
-        }
+    .odds {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
 
-        .bet.win-box {
-          border: 2px solid #bbf7d0;
-          background: #f0fdf4;
-        }
+    .odds button:nth-child(2) {
+      background: #0f766e;
+    }
 
-        .bet.lose-box {
-          border: 2px solid #fecaca;
-          background: #fef2f2;
-        }
+    .odds button:nth-child(3) {
+      background: #4338ca;
+    }
 
-        .topinfo {
-          display: flex;
-          gap: 10px;
-          flex-wrap: wrap;
-          margin-bottom: 20px;
-        }
+    .bet-row, .history-row {
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
 
-        .pill {
-          background: #eff6ff;
-          color: #1d4ed8;
-          padding: 8px 12px;
-          border-radius: 999px;
-          font-weight: bold;
-        }
+    .bet.pending-box {
+      border: 2px solid #fde68a;
+      background: #fffbeb;
+    }
 
-        .pill.gray {
-          background: #f1f5f9;
-          color: #334155;
-        }
+    .bet.win-box {
+      border: 2px solid #bbf7d0;
+      background: #f0fdf4;
+    }
 
-        .two-cols {
-          display: grid;
-          grid-template-columns: 1.5fr 1fr;
-          gap: 20px;
-        }
+    .bet.lose-box {
+      border: 2px solid #fecaca;
+      background: #fef2f2;
+    }
 
-        .bet-row {
-          border: 1px solid #e5e7eb;
-          border-radius: 16px;
-          padding: 16px;
-          margin-bottom: 14px;
-        }
+    .bet-title {
+      font-size: 22px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
 
-        .history-row {
-          border: 1px solid #e5e7eb;
-          border-radius: 16px;
-          padding: 16px;
-          margin-bottom: 14px;
-        }
+    .bet-meta {
+      font-size: 16px;
+      color: #64748b;
+      margin-bottom: 10px;
+    }
 
-        .amount-plus {
-          color: #166534;
-          font-weight: bold;
-        }
+    .status {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
 
-        .amount-minus {
-          color: #b91c1c;
-          font-weight: bold;
-        }
+    .pending {
+      background: #fef3c7;
+      color: #92400e;
+    }
 
-        .bet-title {
-          font-size: 22px;
-          font-weight: bold;
-          margin-bottom: 8px;
-        }
+    .win {
+      background: #dcfce7;
+      color: #166534;
+    }
 
-        .bet-meta {
-          font-size: 16px;
-          color: #64748b;
-          margin-bottom: 10px;
-        }
+    .lose {
+      background: #fee2e2;
+      color: #991b1b;
+    }
 
-        .message {
-          margin-top: 12px;
-          padding: 12px 14px;
-          border-radius: 12px;
-          font-weight: bold;
-          display: none;
-        }
+    .action-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
 
-        .message.success {
-          background: #dcfce7;
-          color: #166534;
-        }
+    .action-row button {
+      width: auto;
+      min-width: 120px;
+    }
 
-        .message.error {
-          background: #fee2e2;
-          color: #991b1b;
-        }
+    .amount-plus {
+      color: #166534;
+      font-weight: bold;
+    }
 
-        .action-row {
-          display: flex;
-          gap: 10px;
-          margin-top: 16px;
-          flex-wrap: wrap;
-        }
+    .amount-minus {
+      color: #b91c1c;
+      font-weight: bold;
+    }
 
-        .action-row button {
-          width: auto;
-          min-width: 120px;
-        }
+    @media (max-width: 900px) {
+      .two-cols {
+        grid-template-columns: 1fr;
+      }
 
-        @media (max-width: 900px) {
-          .two-cols {
-            grid-template-columns: 1fr;
-          }
-
-          .odds {
-            grid-template-columns: 1fr;
-          }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="nav">
-          <a href="/">Home</a>
-          <a href="/register">Register</a>
-          <a href="/login">Login</a>
-          <a href="/matches">Matches</a>
-          <a href="/dashboard">Dashboard</a>
-          <a href="/balance-history">Balance history</a>
-          <a href="/admin">Admin</a>
-        </div>
-        ${content}
-      </div>
-    </body>
-  </html>
+      .odds {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="nav">
+      <a href="/">Home</a>
+      <a href="/register">Register</a>
+      <a href="/login">Login</a>
+      <a href="/matches">Matches</a>
+      <a href="/dashboard">Dashboard</a>
+      <a href="/balance-history">Balance history</a>
+      <a href="/admin">Admin</a>
+    </div>
+    ${content}
+  </div>
+</body>
+</html>
   `;
 }
 
@@ -690,7 +686,7 @@ app.post("/settle-bet", async (req, res) => {
     }
 
     const bet = betResult.rows[0];
-    const currentStatus = String(bet.status || "").trim().toLowerCase();
+    const currentStatus = normalizeStatus(bet.status);
 
     if (currentStatus !== "pending") {
       return res.json({ ok: false, message: "Bet already settled" });
@@ -941,7 +937,7 @@ app.get("/dashboard", async (req, res) => {
         const bets = betsData.bets || [];
         const history = historyData.ok ? historyData.history || [] : [];
 
-        const pending = bets.filter(b => String(b.status || "").trim().toLowerCase() === "pending").length;
+        const pending = bets.filter(b => "${normalizeStatus("pending")}" === String(b.status || "").trim().toLowerCase()).length;
         const wins = bets.filter(b => String(b.status || "").trim().toLowerCase() === "win").length;
         const loses = bets.filter(b => String(b.status || "").trim().toLowerCase() === "lose").length;
         const totalStaked = bets.reduce((s, b) => s + Number(b.stake || 0), 0);
@@ -969,17 +965,20 @@ app.get("/dashboard", async (req, res) => {
           </div>
 
           <h2 style="margin-top:24px;">My bets</h2>
-          \${bets.length === 0 ? "<p>No bets yet.</p>" : bets.map(b => \`
-            <div class="bet \${String(b.status || "").trim().toLowerCase()}-box bet-row">
-              <div class="bet-title">\${b.match_name}</div>
-              <div class="bet-meta">Selection: \${b.selection}</div>
-              <div><strong>ID:</strong> \${b.id}</div>
-              <div><strong>Odds:</strong> \${b.odds}</div>
-              <div><strong>Stake:</strong> \${b.stake}</div>
-              <div><strong>Possible win:</strong> \${b.possible_win}</div>
-              <div><span class="status \${String(b.status || "").trim().toLowerCase()}">\${b.status}</span></div>
-            </div>
-          \`).join("")}
+          \${bets.length === 0 ? "<p>No bets yet.</p>" : bets.map(b => {
+            const s = String(b.status || "").trim().toLowerCase();
+            return \`
+              <div class="bet \${s}-box bet-row">
+                <div class="bet-title">\${b.match_name}</div>
+                <div class="bet-meta">Selection: \${b.selection}</div>
+                <div><strong>ID:</strong> \${b.id}</div>
+                <div><strong>Odds:</strong> \${b.odds}</div>
+                <div><strong>Stake:</strong> \${b.stake}</div>
+                <div><strong>Possible win:</strong> \${b.possible_win}</div>
+                <div><span class="status \${s}">\${s}</span></div>
+              </div>
+            \`;
+          }).join("")}
         \`;
       }
 
@@ -1157,19 +1156,15 @@ app.get("/admin", async (req, res) => {
 
             return \`
               <div class="bet-row bet \${cardClass(s)}">
-                <div style="font-size:26px; font-weight:bold; margin-bottom:6px;">
-                  \${bet.match_name}
-                </div>
-
-                <div class="bet-meta">
-                  Selection: \${bet.selection}
-                </div>
+                <div class="bet-title">\${bet.match_name}</div>
+                <div class="bet-meta">Selection: \${bet.selection}</div>
 
                 <div><strong>ID:</strong> \${bet.id}</div>
                 <div><strong>User:</strong> \${bet.email || bet.user_id}</div>
                 <div><strong>Odds:</strong> \${bet.odds}</div>
                 <div><strong>Stake:</strong> \${bet.stake}</div>
                 <div><strong>Possible win:</strong> \${bet.possible_win}</div>
+
                 <div style="margin-top:10px;">
                   \${statusBadge(s)}
                 </div>
