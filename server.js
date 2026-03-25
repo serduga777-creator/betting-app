@@ -7,7 +7,6 @@ const bcrypt = require("bcryptjs");
 const pool = require("./db");
 
 const app = express();
-
 const ADMIN_EMAIL = "admin@test.com";
 
 app.use(cors({ origin: true, credentials: true }));
@@ -91,20 +90,17 @@ function pageTemplate(title, content) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     * { box-sizing: border-box; }
-
     body {
       margin: 0;
       font-family: Arial, sans-serif;
       background: #f5f7fb;
       color: #0f172a;
     }
-
     .container {
       max-width: 1150px;
       margin: 0 auto;
       padding: 20px;
     }
-
     .topbar {
       background: white;
       border-radius: 20px;
@@ -112,14 +108,12 @@ function pageTemplate(title, content) {
       margin-bottom: 18px;
       box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
     }
-
     .topbar-row {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
       align-items: center;
     }
-
     .pill {
       background: #eff6ff;
       color: #1d4ed8;
@@ -128,24 +122,20 @@ function pageTemplate(title, content) {
       font-weight: bold;
       display: inline-block;
     }
-
     .pill.gray {
       background: #f1f5f9;
       color: #334155;
     }
-
     .pill.admin {
       background: #ede9fe;
       color: #5b21b6;
     }
-
     .nav {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
       margin-bottom: 20px;
     }
-
     .nav a {
       text-decoration: none;
       color: #1d4ed8;
@@ -154,7 +144,6 @@ function pageTemplate(title, content) {
       border-radius: 12px;
       font-weight: bold;
     }
-
     .card {
       background: #fff;
       border-radius: 22px;
@@ -162,7 +151,6 @@ function pageTemplate(title, content) {
       margin-bottom: 20px;
       box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
     }
-
     .hero {
       background: linear-gradient(135deg, #0f172a, #1d4ed8);
       color: white;
@@ -171,13 +159,11 @@ function pageTemplate(title, content) {
       box-shadow: 0 15px 35px rgba(15, 23, 42, 0.16);
       margin-bottom: 20px;
     }
-
     .hero h1 {
       margin: 0 0 12px 0;
       font-size: 38px;
       line-height: 1.1;
     }
-
     .hero p {
       margin: 0;
       opacity: 0.95;
@@ -185,16 +171,11 @@ function pageTemplate(title, content) {
       line-height: 1.6;
       font-size: 18px;
     }
-
-    h1, h2, h3 {
-      margin-top: 0;
-    }
-
+    h1, h2, h3 { margin-top: 0; }
     .muted {
       color: #64748b;
       line-height: 1.6;
     }
-
     input, button {
       width: 100%;
       margin: 8px 0;
@@ -203,7 +184,6 @@ function pageTemplate(title, content) {
       border: 1px solid #dbe2ea;
       font-size: 16px;
     }
-
     button {
       background: #2563eb;
       color: white;
@@ -211,19 +191,10 @@ function pageTemplate(title, content) {
       border: none;
       cursor: pointer;
     }
-
-    .btn-gray {
-      background: #475569;
-    }
-
-    .btn-green {
-      background: #16a34a;
-    }
-
-    .btn-red {
-      background: #dc2626;
-    }
-
+    .btn-gray { background: #475569; }
+    .btn-green { background: #16a34a; }
+    .btn-red { background: #dc2626; }
+    .btn-orange { background: #ea580c; }
     .message {
       margin-top: 12px;
       padding: 12px 14px;
@@ -231,71 +202,52 @@ function pageTemplate(title, content) {
       font-weight: bold;
       display: none;
     }
-
     .message.success {
       background: #dcfce7;
       color: #166534;
     }
-
     .message.error {
       background: #fee2e2;
       color: #991b1b;
     }
-
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
       gap: 16px;
     }
-
     .info-box {
       background: #eff6ff;
       border-radius: 16px;
       padding: 18px;
     }
-
     .stats {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 14px;
     }
-
     .stat {
       background: #eff6ff;
       border-radius: 16px;
       padding: 18px;
     }
-
     .stat .label {
       color: #475569;
       margin-bottom: 10px;
       font-size: 15px;
     }
-
     .stat .value {
       color: #1d4ed8;
       font-size: 28px;
       font-weight: bold;
     }
-
-    .stat.win-stat {
-      background: #dcfce7;
-    }
-
-    .stat.lose-stat {
-      background: #fee2e2;
-    }
-
-    .stat.total-stat {
-      background: #ede9fe;
-    }
-
+    .stat.win-stat { background: #dcfce7; }
+    .stat.lose-stat { background: #fee2e2; }
+    .stat.total-stat { background: #ede9fe; }
     .two-cols {
       display: grid;
       grid-template-columns: 1.5fr 1fr;
       gap: 20px;
     }
-
     .match-card {
       border: 1px solid #e5e7eb;
       border-radius: 18px;
@@ -303,7 +255,6 @@ function pageTemplate(title, content) {
       margin-bottom: 16px;
       background: linear-gradient(180deg, #ffffff, #f8fbff);
     }
-
     .league {
       display: inline-block;
       background: #eef2ff;
@@ -314,33 +265,23 @@ function pageTemplate(title, content) {
       font-weight: bold;
       margin-bottom: 10px;
     }
-
     .match-title {
       font-size: 24px;
       font-weight: bold;
       margin-bottom: 8px;
     }
-
     .divider {
       height: 1px;
       background: #e5e7eb;
       margin: 16px 0;
     }
-
     .odds {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
       gap: 10px;
     }
-
-    .odds button:nth-child(2) {
-      background: #0f766e;
-    }
-
-    .odds button:nth-child(3) {
-      background: #4338ca;
-    }
-
+    .odds button:nth-child(2) { background: #0f766e; }
+    .odds button:nth-child(3) { background: #4338ca; }
     .bet-row, .history-row, .user-row {
       border: 1px solid #e5e7eb;
       border-radius: 18px;
@@ -348,34 +289,28 @@ function pageTemplate(title, content) {
       margin-bottom: 14px;
       background: white;
     }
-
     .bet.pending-box {
       border: 2px solid #fde68a;
       background: #fffbeb;
     }
-
     .bet.win-box {
       border: 2px solid #bbf7d0;
       background: #f0fdf4;
     }
-
     .bet.lose-box {
       border: 2px solid #fecaca;
       background: #fef2f2;
     }
-
     .bet-title {
       font-size: 22px;
       font-weight: bold;
       margin-bottom: 6px;
     }
-
     .bet-meta {
       color: #64748b;
       font-size: 16px;
       margin-bottom: 12px;
     }
-
     .status {
       display: inline-block;
       margin-top: 12px;
@@ -385,44 +320,36 @@ function pageTemplate(title, content) {
       font-weight: bold;
       text-transform: uppercase;
     }
-
     .pending {
       background: #fef3c7;
       color: #92400e;
     }
-
     .win {
       background: #dcfce7;
       color: #166534;
     }
-
     .lose {
       background: #fee2e2;
       color: #991b1b;
     }
-
     .action-row {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
       margin-top: 16px;
     }
-
     .action-row button {
       width: auto;
       min-width: 120px;
     }
-
     .amount-plus {
       color: #166534;
       font-weight: bold;
     }
-
     .amount-minus {
       color: #b91c1c;
       font-weight: bold;
     }
-
     .warn-box {
       background: #fff7ed;
       border: 2px solid #fdba74;
@@ -430,23 +357,11 @@ function pageTemplate(title, content) {
       border-radius: 18px;
       padding: 18px;
     }
-
     @media (max-width: 900px) {
-      .two-cols {
-        grid-template-columns: 1fr;
-      }
-
-      .odds {
-        grid-template-columns: 1fr;
-      }
-
-      .hero h1 {
-        font-size: 30px;
-      }
-
-      .hero p {
-        font-size: 16px;
-      }
+      .two-cols { grid-template-columns: 1fr; }
+      .odds { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 30px; }
+      .hero p { font-size: 16px; }
     }
   </style>
 </head>
@@ -546,23 +461,6 @@ app.get("/", async (req, res) => {
         balance history and admin settlement panel.
       </p>
     </div>
-
-    <div class="grid">
-      <div class="card">
-        <h3>Protected pages</h3>
-        <p class="muted">Matches, dashboard and balance history require login.</p>
-      </div>
-
-      <div class="card">
-        <h3>Admin panel</h3>
-        <p class="muted">Only admin can see admin tools and settle bets.</p>
-      </div>
-
-      <div class="card">
-        <h3>Balance history</h3>
-        <p class="muted">Every stake and every payout is stored separately.</p>
-      </div>
-    </div>
   `);
 
   res.send(html);
@@ -608,15 +506,6 @@ app.get("/init-db", async (req, res) => {
     `);
 
     res.json({ ok: true });
-  } catch (err) {
-    res.json({ ok: false, message: err.message });
-  }
-});
-
-app.get("/db-test", async (req, res) => {
-  try {
-    const result = await pool.query("SELECT NOW() as now");
-    res.json({ ok: true, time: result.rows[0].now });
   } catch (err) {
     res.json({ ok: false, message: err.message });
   }
@@ -743,7 +632,6 @@ app.get("/register", async (req, res) => {
         }
 
         showMessage("Account created successfully", "success");
-
         setTimeout(() => {
           window.location.href = "/dashboard";
         }, 500);
@@ -792,7 +680,6 @@ app.get("/login", async (req, res) => {
         }
 
         showMessage("Login successful", "success");
-
         setTimeout(() => {
           window.location.href = "/dashboard";
         }, 500);
@@ -882,9 +769,7 @@ app.post("/settle-bet", async (req, res) => {
     }
 
     const bet = betResult.rows[0];
-    const currentStatus = normalizeStatus(bet.status);
-
-    if (currentStatus !== "pending") {
+    if (normalizeStatus(bet.status) !== "pending") {
       return res.json({ ok: false, message: "Bet already settled" });
     }
 
@@ -929,6 +814,62 @@ app.post("/settle-bet", async (req, res) => {
     }
 
     res.json({ ok: true, message: "Bet settled", newBalance });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+app.post("/delete-bet", async (req, res) => {
+  try {
+    const user = await getUser(req);
+
+    if (!isAdmin(user)) {
+      return res.json({ ok: false, message: "Admin access required" });
+    }
+
+    const { betId } = req.body;
+
+    const betResult = await pool.query(
+      "SELECT * FROM bets WHERE id = $1",
+      [betId]
+    );
+
+    if (!betResult.rows.length) {
+      return res.json({ ok: false, message: "Bet not found" });
+    }
+
+    const bet = betResult.rows[0];
+
+    if (normalizeStatus(bet.status) === "pending") {
+      await pool.query(
+        "UPDATE users SET balance = balance + $1 WHERE id = $2",
+        [bet.stake, bet.user_id]
+      );
+
+      const userResult = await pool.query(
+        "SELECT balance FROM users WHERE id = $1",
+        [bet.user_id]
+      );
+
+      const refundedBalance = Number(userResult.rows[0].balance);
+
+      await pool.query(
+        `INSERT INTO balance_history (user_id, amount, type, description, bet_id, balance_after)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          bet.user_id,
+          Number(bet.stake),
+          "bet_refund",
+          `Refund for deleted pending bet: ${bet.match_name} / ${bet.selection}`,
+          bet.id,
+          refundedBalance
+        ]
+      );
+    }
+
+    await pool.query("DELETE FROM bets WHERE id = $1", [betId]);
+
+    res.json({ ok: true, message: "Bet deleted" });
   } catch (err) {
     res.json({ ok: false, message: err.message });
   }
@@ -1156,14 +1097,13 @@ app.get("/dashboard", async (req, res) => {
         const bets = betsData.bets || [];
         const history = historyData.ok ? historyData.history || [] : [];
 
-        const pending = bets.filter(b => String(b.status || "").trim().toLowerCase() === "pending").length;
-        const wins = bets.filter(b => String(b.status || "").trim().toLowerCase() === "win").length;
-        const loses = bets.filter(b => String(b.status || "").trim().toLowerCase() === "lose").length;
+        const pending = bets.filter(b => normalizeStatus(b.status) === "pending").length;
+        const wins = bets.filter(b => normalizeStatus(b.status) === "win").length;
+        const loses = bets.filter(b => normalizeStatus(b.status) === "lose").length;
         const totalStaked = bets.reduce((s, b) => s + Number(b.stake || 0), 0);
-        const totalWon = history
-          .filter(h => h.type === "bet_win")
-          .reduce((s, h) => s + Number(h.amount || 0), 0);
-        const profit = totalWon - totalStaked;
+        const totalWon = history.filter(h => h.type === "bet_win").reduce((s, h) => s + Number(h.amount || 0), 0);
+        const totalRefund = history.filter(h => h.type === "bet_refund").reduce((s, h) => s + Number(h.amount || 0), 0);
+        const profit = totalWon + totalRefund - totalStaked;
 
         document.getElementById("dashboardContent").innerHTML = \`
           <h2>Account</h2>
@@ -1194,7 +1134,7 @@ app.get("/dashboard", async (req, res) => {
 
           <h2 style="margin-top:24px;">My bets</h2>
           \${bets.length === 0 ? "<p>No bets yet.</p>" : bets.map(b => {
-            const s = String(b.status || "").trim().toLowerCase();
+            const s = normalizeStatus(b.status);
             return \`
               <div class="bet \${s}-box bet-row">
                 <div class="bet-title">\${b.match_name}</div>
@@ -1227,7 +1167,7 @@ app.get("/balance-history", async (req, res) => {
   const html = await renderLayout(req, "Balance history", `
     <div class="card">
       <h1>Balance history</h1>
-      <p class="muted">See every balance movement: stakes and winnings.</p>
+      <p class="muted">See every balance movement: stakes, refunds and winnings.</p>
       <button onclick="loadHistory()" style="width:auto;">Refresh history</button>
     </div>
 
@@ -1287,7 +1227,7 @@ app.get("/admin", async (req, res) => {
   const html = await renderLayout(req, "Admin", `
     <div class="card">
       <h1>Admin panel</h1>
-      <p class="muted">Manage bets and settle them with one click.</p>
+      <p class="muted">Manage bets: settle or delete them.</p>
       <button onclick="loadBets()" style="width:auto;">Refresh bets</button>
       <div id="msg" class="message"></div>
     </div>
@@ -1300,10 +1240,7 @@ app.get("/admin", async (req, res) => {
         box.className = "message " + type;
         box.style.display = "block";
         box.textContent = text;
-
-        setTimeout(() => {
-          box.style.display = "none";
-        }, 2200);
+        setTimeout(() => { box.style.display = "none"; }, 2400);
       }
 
       function normalizeStatus(status) {
@@ -1339,6 +1276,28 @@ app.get("/admin", async (req, res) => {
         }
 
         showMessage("Bet #" + betId + " settled as " + status.toUpperCase(), "success");
+        loadBets();
+      }
+
+      async function deleteBet(betId) {
+        const ok = confirm("Delete bet #" + betId + "? Pending bet will be refunded.");
+        if (!ok) return;
+
+        const res = await fetch("/delete-bet", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ betId })
+        });
+
+        const data = await res.json();
+
+        if (!data.ok) {
+          showMessage(data.message || "Delete failed", "error");
+          return;
+        }
+
+        showMessage("Bet #" + betId + " deleted", "success");
         loadBets();
       }
 
@@ -1380,25 +1339,23 @@ app.get("/admin", async (req, res) => {
 
           \${bets.map(bet => {
             const s = normalizeStatus(bet.status);
-
             return \`
               <div class="bet-row bet \${cardClass(s)}">
                 <div class="bet-title">\${bet.match_name}</div>
                 <div class="bet-meta">Selection: \${bet.selection}</div>
-
                 <div><strong>ID:</strong> \${bet.id}</div>
                 <div><strong>User:</strong> \${bet.email || bet.user_id}</div>
                 <div><strong>Odds:</strong> \${bet.odds}</div>
                 <div><strong>Stake:</strong> \${bet.stake}</div>
                 <div><strong>Possible win:</strong> \${bet.possible_win}</div>
                 <div style="margin-top:10px;">\${statusBadge(s)}</div>
-
-                \${s === "pending" ? \`
-                  <div class="action-row">
+                <div class="action-row">
+                  \${s === "pending" ? \`
                     <button class="btn-green" onclick="settleBet(\${bet.id}, 'win')">WIN</button>
                     <button class="btn-red" onclick="settleBet(\${bet.id}, 'lose')">LOSE</button>
-                  </div>
-                \` : ""}
+                  \` : ""}
+                  <button class="btn-orange" onclick="deleteBet(\${bet.id})">DELETE</button>
+                </div>
               </div>
             \`;
           }).join("")}
@@ -1439,7 +1396,6 @@ app.get("/users", async (req, res) => {
         <h1>Users</h1>
         <p class="muted">List of all registered users.</p>
       </div>
-
       <div class="card">
         ${result.rows.length === 0 ? "<p>No users yet.</p>" : result.rows.map(row => `
           <div class="user-row">
@@ -1457,7 +1413,6 @@ app.get("/users", async (req, res) => {
     if (req.query.format === "json") {
       return res.json({ ok: false, message: err.message });
     }
-
     res.send(await renderLayout(req, "Users", `
       <div class="card">
         <h1>Users</h1>
@@ -1494,7 +1449,6 @@ app.get("/bets", async (req, res) => {
       if (!user || !isAdmin(user)) {
         return res.json({ ok: false, message: "Admin access required" });
       }
-
       return res.json({ ok: true, bets: result.rows });
     }
 
