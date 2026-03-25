@@ -769,6 +769,7 @@ app.post("/settle-bet", async (req, res) => {
     }
 
     const bet = betResult.rows[0];
+
     if (normalizeStatus(bet.status) !== "pending") {
       return res.json({ ok: false, message: "Bet already settled" });
     }
@@ -1074,80 +1075,138 @@ app.get("/dashboard", async (req, res) => {
         <button onclick="loadDashboard()">Refresh dashboard</button>
         <button class="btn-gray" onclick="logoutUser()">Logout</button>
       </div>
+      <div id="dashMsg" class="message"></div>
     </div>
 
     <div id="dashboardContent" class="card">Loading...</div>
 
     <script>
+      function showDashError(text) {
+        const box = document.getElementById("dashMsg");
+        box.className = "message error";
+        box.style.display = "block";
+        box.textContent = text;
+      }
+
+      function normalizeStatus(status) {
+        return String(status || "").trim().toLowerCase();
+      }
+
       async function loadDashboard() {
-        const meRes = await fetch("/me", { credentials: "include", cache: "no-store" });
-        const meData = await meRes.json();
+        try {
+          const meRes = await fetch("/me", {
+            credentials: "include",
+            cache: "no-store"
+          });
+          const meData = await meRes.json();
 
-        const betsRes = await fetch("/api/my-bets", { credentials: "include", cache: "no-store" });
-        const betsData = await betsRes.json();
+          if (!meData.ok) {
+            window.location.href = "/login";
+            return;
+          }
 
-        const historyRes = await fetch("/api/balance-history", { credentials: "include", cache: "no-store" });
-        const historyData = await historyRes.json();
+          const betsRes = await fetch("/api/my-bets", {
+            credentials: "include",
+            cache: "no-store"
+          });
+          const betsData = await betsRes.json();
 
-        if (!meData.ok || !betsData.ok) {
-          document.getElementById("dashboardContent").innerHTML = "Error loading dashboard";
-          return;
-        }
+          const historyRes = await fetch("/api/balance-history", {
+            credentials: "include",
+            cache: "no-store"
+          });
+          const historyData = await historyRes.json();
 
-        const bets = betsData.bets || [];
-        const history = historyData.ok ? historyData.history || [] : [];
+          if (!betsData.ok) {
+            throw new Error(betsData.message || "Could not load bets");
+          }
 
-        const pending = bets.filter(b => normalizeStatus(b.status) === "pending").length;
-        const wins = bets.filter(b => normalizeStatus(b.status) === "win").length;
-        const loses = bets.filter(b => normalizeStatus(b.status) === "lose").length;
-        const totalStaked = bets.reduce((s, b) => s + Number(b.stake || 0), 0);
-        const totalWon = history.filter(h => h.type === "bet_win").reduce((s, h) => s + Number(h.amount || 0), 0);
-        const totalRefund = history.filter(h => h.type === "bet_refund").reduce((s, h) => s + Number(h.amount || 0), 0);
-        const profit = totalWon + totalRefund - totalStaked;
+          if (!historyData.ok) {
+            throw new Error(historyData.message || "Could not load balance history");
+          }
 
-        document.getElementById("dashboardContent").innerHTML = \`
-          <h2>Account</h2>
-          <div class="stats">
-            <div class="stat">
-              <div class="label">Email</div>
-              <div class="value" style="font-size:18px;">\${meData.user.email}</div>
-            </div>
-            <div class="stat">
-              <div class="label">Balance</div>
-              <div class="value">\${meData.user.balance}</div>
-            </div>
-            <div class="stat">
-              <div class="label">User ID</div>
-              <div class="value">\${meData.user.id}</div>
-            </div>
-          </div>
+          const bets = betsData.bets || [];
+          const history = historyData.history || [];
 
-          <h2 style="margin-top:24px;">My stats</h2>
-          <div class="stats">
-            <div class="stat"><div class="label">Total bets</div><div class="value">\${bets.length}</div></div>
-            <div class="stat"><div class="label">Pending</div><div class="value">\${pending}</div></div>
-            <div class="stat win-stat"><div class="label">Wins</div><div class="value">\${wins}</div></div>
-            <div class="stat lose-stat"><div class="label">Loses</div><div class="value">\${loses}</div></div>
-            <div class="stat total-stat"><div class="label">Total staked</div><div class="value">\${totalStaked}</div></div>
-            <div class="stat \${profit >= 0 ? "win-stat" : "lose-stat"}"><div class="label">Profit</div><div class="value">\${profit}</div></div>
-          </div>
+          const pending = bets.filter(b => normalizeStatus(b.status) === "pending").length;
+          const wins = bets.filter(b => normalizeStatus(b.status) === "win").length;
+          const loses = bets.filter(b => normalizeStatus(b.status) === "lose").length;
 
-          <h2 style="margin-top:24px;">My bets</h2>
-          \${bets.length === 0 ? "<p>No bets yet.</p>" : bets.map(b => {
-            const s = normalizeStatus(b.status);
-            return \`
-              <div class="bet \${s}-box bet-row">
-                <div class="bet-title">\${b.match_name}</div>
-                <div class="bet-meta">Selection: \${b.selection}</div>
-                <div><strong>ID:</strong> \${b.id}</div>
-                <div><strong>Odds:</strong> \${b.odds}</div>
-                <div><strong>Stake:</strong> \${b.stake}</div>
-                <div><strong>Possible win:</strong> \${b.possible_win}</div>
-                <div><span class="status \${s}">\${s}</span></div>
+          const totalStaked = bets.reduce((sum, b) => sum + Number(b.stake || 0), 0);
+          const totalWon = history
+            .filter(h => h.type === "bet_win")
+            .reduce((sum, h) => sum + Number(h.amount || 0), 0);
+          const totalRefund = history
+            .filter(h => h.type === "bet_refund")
+            .reduce((sum, h) => sum + Number(h.amount || 0), 0);
+
+          const profit = totalWon + totalRefund - totalStaked;
+
+          document.getElementById("dashboardContent").innerHTML = \`
+            <h2>Account</h2>
+            <div class="stats">
+              <div class="stat">
+                <div class="label">Email</div>
+                <div class="value" style="font-size:18px;">\${meData.user.email}</div>
               </div>
-            \`;
-          }).join("")}
-        \`;
+              <div class="stat">
+                <div class="label">Balance</div>
+                <div class="value">\${meData.user.balance}</div>
+              </div>
+              <div class="stat">
+                <div class="label">User ID</div>
+                <div class="value">\${meData.user.id}</div>
+              </div>
+            </div>
+
+            <h2 style="margin-top:24px;">My stats</h2>
+            <div class="stats">
+              <div class="stat">
+                <div class="label">Total bets</div>
+                <div class="value">\${bets.length}</div>
+              </div>
+              <div class="stat">
+                <div class="label">Pending</div>
+                <div class="value">\${pending}</div>
+              </div>
+              <div class="stat win-stat">
+                <div class="label">Wins</div>
+                <div class="value">\${wins}</div>
+              </div>
+              <div class="stat lose-stat">
+                <div class="label">Loses</div>
+                <div class="value">\${loses}</div>
+              </div>
+              <div class="stat total-stat">
+                <div class="label">Total staked</div>
+                <div class="value">\${totalStaked}</div>
+              </div>
+              <div class="stat \${profit >= 0 ? "win-stat" : "lose-stat"}">
+                <div class="label">Profit</div>
+                <div class="value">\${profit}</div>
+              </div>
+            </div>
+
+            <h2 style="margin-top:24px;">My bets</h2>
+            \${bets.length === 0 ? "<p>No bets yet.</p>" : bets.map(b => {
+              const s = normalizeStatus(b.status);
+              return \`
+                <div class="bet \${s}-box bet-row">
+                  <div class="bet-title">\${b.match_name}</div>
+                  <div class="bet-meta">Selection: \${b.selection}</div>
+                  <div><strong>ID:</strong> \${b.id}</div>
+                  <div><strong>Odds:</strong> \${b.odds}</div>
+                  <div><strong>Stake:</strong> \${b.stake}</div>
+                  <div><strong>Possible win:</strong> \${b.possible_win}</div>
+                  <div><span class="status \${s}">\${s}</span></div>
+                </div>
+              \`;
+            }).join("")}
+          \`;
+        } catch (err) {
+          showDashError(err.message || "Dashboard loading failed");
+          document.getElementById("dashboardContent").innerHTML = "<p>Could not load dashboard.</p>";
+        }
       }
 
       loadDashboard();
@@ -1413,6 +1472,7 @@ app.get("/users", async (req, res) => {
     if (req.query.format === "json") {
       return res.json({ ok: false, message: err.message });
     }
+
     res.send(await renderLayout(req, "Users", `
       <div class="card">
         <h1>Users</h1>
