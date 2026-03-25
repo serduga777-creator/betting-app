@@ -1,4 +1,30 @@
-   cookie: {
+   require("dotenv").config();
+
+const express = require("express");
+const cors = require("cors");
+const session = require("express-session");
+const bcrypt = require("bcryptjs");
+const pool = require("./db");
+
+const app = express();
+const ADMIN_EMAIL = "admin@test.com";
+
+app.use(cors({ origin: true, credentials: true }));
+app.use(express.json());
+
+app.use((req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  next();
+});
+
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "demo-secret-key",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
       secure: false,
       httpOnly: true,
       sameSite: "lax",
@@ -63,279 +89,547 @@ function pageTemplate(title, content) {
   <title>${title}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    * { box-sizing: border-box; }
-    body {
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #eef3fb;
+      --card: rgba(255,255,255,0.88);
+      --card-strong: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --line: #dbe4f0;
+
+      --blue: #2563eb;
+      --blue-dark: #1d4ed8;
+      --blue-soft: #eaf2ff;
+
+      --green: #16a34a;
+      --green-soft: #dcfce7;
+
+      --red: #dc2626;
+      --red-soft: #fee2e2;
+
+      --yellow: #d97706;
+      --yellow-soft: #fef3c7;
+
+      --purple: #7c3aed;
+      --purple-soft: #ede9fe;
+
+      --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+      --radius: 24px;
+    }
+
+    html, body {
       margin: 0;
+      padding: 0;
       font-family: Arial, sans-serif;
-      background: #f5f7fb;
-      color: #0f172a;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, #f8fbff 0%, #eef3fb 45%, #e8eef9 100%);
     }
+
+    body {
+      min-height: 100vh;
+    }
+
     .container {
-      max-width: 1150px;
+      max-width: 1180px;
       margin: 0 auto;
-      padding: 20px;
-    }
-    .topbar {
-      background: white;
-      border-radius: 20px;
       padding: 18px;
-      margin-bottom: 18px;
-      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
     }
+
+    .topbar {
+      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.88));
+      border: 1px solid rgba(255,255,255,0.7);
+      border-radius: 28px;
+      padding: 20px;
+      margin-bottom: 18px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
     .topbar-row {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
       align-items: center;
     }
+
     .pill {
-      background: #eff6ff;
-      color: #1d4ed8;
-      padding: 10px 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 15px;
       border-radius: 999px;
-      font-weight: bold;
-      display: inline-block;
+      background: var(--blue-soft);
+      color: var(--blue-dark);
+      font-weight: 700;
+      font-size: 15px;
+      border: 1px solid #dce8ff;
     }
+
     .pill.gray {
-      background: #f1f5f9;
+      background: #f3f6fb;
       color: #334155;
+      border: 1px solid #e3eaf4;
     }
+
     .pill.admin {
-      background: #ede9fe;
+      background: var(--purple-soft);
       color: #5b21b6;
+      border: 1px solid #ddd6fe;
     }
+
     .nav {
       display: flex;
-      gap: 10px;
       flex-wrap: wrap;
+      gap: 10px;
       margin-bottom: 20px;
     }
+
     .nav a {
       text-decoration: none;
-      color: #1d4ed8;
-      background: #eff6ff;
-      padding: 10px 14px;
-      border-radius: 12px;
-      font-weight: bold;
+      color: var(--blue-dark);
+      background: rgba(255,255,255,0.72);
+      border: 1px solid #dde7f4;
+      padding: 12px 16px;
+      border-radius: 16px;
+      font-weight: 700;
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
+      transition: 0.18s ease;
     }
+
+    .nav a:hover {
+      transform: translateY(-1px);
+      background: white;
+    }
+
     .card {
-      background: #fff;
-      border-radius: 22px;
-      padding: 24px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.90));
+      border: 1px solid rgba(223,231,243,0.95);
+      border-radius: var(--radius);
+      padding: 26px;
       margin-bottom: 20px;
-      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+      box-shadow: var(--shadow);
     }
+
     .hero {
-      background: linear-gradient(135deg, #0f172a, #1d4ed8);
+      background:
+        radial-gradient(circle at top right, rgba(96,165,250,0.28), transparent 30%),
+        linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%);
       color: white;
-      border-radius: 24px;
-      padding: 34px 26px;
-      box-shadow: 0 15px 35px rgba(15, 23, 42, 0.16);
+      border-radius: 30px;
+      padding: 38px 28px;
+      box-shadow: 0 22px 48px rgba(29, 78, 216, 0.22);
       margin-bottom: 20px;
+      overflow: hidden;
+      position: relative;
     }
+
     .hero h1 {
       margin: 0 0 12px 0;
-      font-size: 38px;
-      line-height: 1.1;
+      font-size: 40px;
+      line-height: 1.08;
+      letter-spacing: -0.02em;
     }
+
     .hero p {
       margin: 0;
-      opacity: 0.95;
-      max-width: 700px;
-      line-height: 1.6;
+      max-width: 760px;
+      line-height: 1.65;
       font-size: 18px;
+      color: rgba(255,255,255,0.92);
     }
-    h1, h2, h3 { margin-top: 0; }
+
+    h1, h2, h3 {
+      margin-top: 0;
+      letter-spacing: -0.02em;
+    }
+
+    h1 {
+      font-size: 34px;
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      font-size: 28px;
+      margin-bottom: 14px;
+    }
+
+    h3 {
+      font-size: 22px;
+    }
+
     .muted {
-      color: #64748b;
-      line-height: 1.6;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 17px;
     }
-    input, button {
+
+    input, button, textarea, select {
       width: 100%;
       margin: 8px 0;
-      padding: 14px;
-      border-radius: 12px;
-      border: 1px solid #dbe2ea;
+      padding: 15px 16px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
       font-size: 16px;
+      outline: none;
+      transition: 0.18s ease;
     }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
+    }
+
     button {
-      background: #2563eb;
-      color: white;
-      font-weight: bold;
       border: none;
+      background: linear-gradient(180deg, #3b82f6, #2563eb);
+      color: white;
+      font-weight: 800;
       cursor: pointer;
+      box-shadow: 0 10px 20px rgba(37, 99, 235, 0.22);
     }
-    .btn-gray { background: #475569; }
-    .btn-green { background: #16a34a; }
-    .btn-red { background: #dc2626; }
-    .btn-orange { background: #ea580c; }
+
+    button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.02);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .btn-gray {
+      background: linear-gradient(180deg, #64748b, #475569);
+      box-shadow: 0 10px 20px rgba(71, 85, 105, 0.18);
+    }
+
+    .btn-green {
+      background: linear-gradient(180deg, #22c55e, #16a34a);
+      box-shadow: 0 10px 20px rgba(22, 163, 74, 0.18);
+    }
+
+    .btn-red {
+      background: linear-gradient(180deg, #ef4444, #dc2626);
+      box-shadow: 0 10px 20px rgba(220, 38, 38, 0.18);
+    }
+
+    .btn-orange {
+      background: linear-gradient(180deg, #fb923c, #ea580c);
+      box-shadow: 0 10px 20px rgba(234, 88, 12, 0.18);
+    }
+
     .message {
       margin-top: 12px;
-      padding: 12px 14px;
-      border-radius: 12px;
-      font-weight: bold;
+      padding: 14px 16px;
+      border-radius: 16px;
+      font-weight: 700;
       display: none;
+      border: 1px solid transparent;
     }
+
     .message.success {
-      background: #dcfce7;
+      display: block;
+      background: var(--green-soft);
       color: #166534;
+      border-color: #bbf7d0;
     }
+
     .message.error {
-      background: #fee2e2;
+      display: block;
+      background: var(--red-soft);
       color: #991b1b;
+      border-color: #fecaca;
     }
+
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
       gap: 16px;
     }
-    .info-box {
-      background: #eff6ff;
-      border-radius: 16px;
-      padding: 18px;
-    }
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 14px;
-    }
-    .stat {
-      background: #eff6ff;
-      border-radius: 16px;
-      padding: 18px;
-    }
-    .stat .label {
-      color: #475569;
-      margin-bottom: 10px;
-      font-size: 15px;
-    }
-    .stat .value {
-      color: #1d4ed8;
-      font-size: 28px;
-      font-weight: bold;
-    }
-    .stat.win-stat { background: #dcfce7; }
-    .stat.lose-stat { background: #fee2e2; }
-    .stat.total-stat { background: #ede9fe; }
+
     .two-cols {
       display: grid;
-      grid-template-columns: 1.5fr 1fr;
+      grid-template-columns: 1.4fr 1fr;
       gap: 20px;
     }
-    .match-card {
-      border: 1px solid #e5e7eb;
-      border-radius: 18px;
+
+    .info-box {
+      background: linear-gradient(180deg, #f7faff, #eef5ff);
+      border-radius: 20px;
       padding: 18px;
+      border: 1px solid #dce8ff;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 14px;
+    }
+
+    .stat {
+      background: linear-gradient(180deg, #f8fbff, #eef4ff);
+      border-radius: 20px;
+      padding: 20px;
+      border: 1px solid #dde8fb;
+      min-height: 126px;
+    }
+
+    .stat .label {
+      color: #475569;
+      margin-bottom: 12px;
+      font-size: 15px;
+    }
+
+    .stat .value {
+      color: var(--blue-dark);
+      font-size: 30px;
+      font-weight: 800;
+      line-height: 1.15;
+      word-break: break-word;
+    }
+
+    .stat.win-stat {
+      background: linear-gradient(180deg, #ebfbef, #dcfce7);
+      border-color: #bbf7d0;
+    }
+
+    .stat.lose-stat {
+      background: linear-gradient(180deg, #fff1f1, #fee2e2);
+      border-color: #fecaca;
+    }
+
+    .stat.total-stat {
+      background: linear-gradient(180deg, #f3efff, #ede9fe);
+      border-color: #ddd6fe;
+    }
+
+    .match-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 22px;
+      padding: 20px;
       margin-bottom: 16px;
       background: linear-gradient(180deg, #ffffff, #f8fbff);
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.04);
     }
+
     .league {
       display: inline-block;
       background: #eef2ff;
       color: #4338ca;
       border-radius: 999px;
-      padding: 6px 10px;
+      padding: 7px 11px;
       font-size: 12px;
-      font-weight: bold;
-      margin-bottom: 10px;
+      font-weight: 800;
+      margin-bottom: 12px;
     }
+
     .match-title {
       font-size: 24px;
-      font-weight: bold;
+      font-weight: 800;
       margin-bottom: 8px;
+      letter-spacing: -0.02em;
     }
+
     .divider {
       height: 1px;
-      background: #e5e7eb;
-      margin: 16px 0;
+      background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+      margin: 18px 0;
     }
+
     .odds {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
-      gap: 10px;
+      gap: 12px;
     }
-    .odds button:nth-child(2) { background: #0f766e; }
-    .odds button:nth-child(3) { background: #4338ca; }
+
+    .odds button {
+      min-height: 88px;
+      border-radius: 20px;
+      font-size: 17px;
+      font-weight: 800;
+    }
+
+    .odds button:nth-child(1) {
+      background: linear-gradient(180deg, #3b82f6, #1d4ed8);
+    }
+
+    .odds button:nth-child(2) {
+      background: linear-gradient(180deg, #0f766e, #0f766e);
+    }
+
+    .odds button:nth-child(3) {
+      background: linear-gradient(180deg, #5b43e6, #4338ca);
+    }
+
     .bet-row, .history-row, .user-row {
       border: 1px solid #e5e7eb;
-      border-radius: 18px;
-      padding: 16px;
+      border-radius: 22px;
+      padding: 18px;
       margin-bottom: 14px;
-      background: white;
+      background: linear-gradient(180deg, #ffffff, #fcfdff);
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.04);
     }
+
     .bet.pending-box {
-      border: 2px solid #fde68a;
-      background: #fffbeb;
+      border: 2px solid #fcd34d;
+      background: linear-gradient(180deg, #fffdf3, #fffbeb);
     }
+
     .bet.win-box {
-      border: 2px solid #bbf7d0;
-      background: #f0fdf4;
+      border: 2px solid #9ae6b4;
+      background: linear-gradient(180deg, #f3fff7, #f0fdf4);
     }
+
     .bet.lose-box {
-      border: 2px solid #fecaca;
-      background: #fef2f2;
+      border: 2px solid #fca5a5;
+      background: linear-gradient(180deg, #fff5f5, #fef2f2);
     }
+
     .bet-title {
       font-size: 22px;
-      font-weight: bold;
+      font-weight: 800;
       margin-bottom: 6px;
+      line-height: 1.25;
     }
+
     .bet-meta {
-      color: #64748b;
+      color: var(--muted);
       font-size: 16px;
       margin-bottom: 12px;
     }
+
     .status {
       display: inline-block;
       margin-top: 12px;
-      padding: 7px 11px;
+      padding: 8px 12px;
       border-radius: 999px;
       font-size: 12px;
-      font-weight: bold;
+      font-weight: 800;
       text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
+
     .pending {
-      background: #fef3c7;
+      background: var(--yellow-soft);
       color: #92400e;
     }
+
     .win {
-      background: #dcfce7;
+      background: var(--green-soft);
       color: #166534;
     }
+
     .lose {
-      background: #fee2e2;
+      background: var(--red-soft);
       color: #991b1b;
     }
+
     .action-row {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
       margin-top: 16px;
     }
+
     .action-row button {
       width: auto;
-      min-width: 120px;
+      min-width: 132px;
+      margin: 0;
     }
+
     .amount-plus {
-      color: #166534;
-      font-weight: bold;
+      color: #15803d;
+      font-weight: 800;
     }
+
     .amount-minus {
       color: #b91c1c;
-      font-weight: bold;
+      font-weight: 800;
     }
+
     .warn-box {
-      background: #fff7ed;
+      background: linear-gradient(180deg, #fff7ed, #ffedd5);
       border: 2px solid #fdba74;
       color: #9a3412;
-      border-radius: 18px;
+      border-radius: 20px;
       padding: 18px;
+      line-height: 1.65;
     }
+
+    .mono {
+      font-family: monospace;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
     @media (max-width: 900px) {
-      .two-cols { grid-template-columns: 1fr; }
-      .odds { grid-template-columns: 1fr; }
-      .hero h1 { font-size: 30px; }
-      .hero p { font-size: 16px; }
+      .two-cols {
+        grid-template-columns: 1fr;
+      }
+
+      .odds {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        padding: 28px 22px;
+      }
+
+      .hero h1 {
+        font-size: 30px;
+      }
+
+      .hero p {
+        font-size: 16px;
+      }
+
+      .card {
+        padding: 20px;
+      }
+
+      .stat {
+        min-height: unset;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .container {
+        padding: 14px;
+      }
+
+      .topbar,
+      .card {
+        border-radius: 22px;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+
+      h2 {
+        font-size: 24px;
+      }
+
+      .match-title,
+      .bet-title {
+        font-size: 20px;
+      }
+
+      .stat .value {
+        font-size: 24px;
+      }
+
+      .action-row {
+        flex-direction: column;
+      }
+
+      .action-row button {
+        width: 100%;
+      }
     }
   </style>
 </head>
@@ -1536,5 +1830,3 @@ const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log("Server started on port", port);
 });
-
- 
