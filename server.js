@@ -1,30 +1,4 @@
-require("dotenv").config();
-
-const express = require("express");
-const cors = require("cors");
-const session = require("express-session");
-const bcrypt = require("bcryptjs");
-const pool = require("./db");
-
-const app = express();
-const ADMIN_EMAIL = "admin@test.com";
-
-app.use(cors({ origin: true, credentials: true }));
-app.use(express.json());
-
-app.use((req, res, next) => {
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-  res.setHeader("Pragma", "no-cache");
-  res.setHeader("Expires", "0");
-  next();
-});
-
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || "demo-secret-key",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
+   cookie: {
       secure: false,
       httpOnly: true,
       sameSite: "lax",
@@ -1562,3 +1536,5 @@ const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log("Server started on port", port);
 });
+
+ 
