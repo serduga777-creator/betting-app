@@ -1,4 +1,4 @@
-   require("dotenv").config();
+require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
@@ -89,13 +89,11 @@ function pageTemplate(title, content) {
   <title>${title}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     :root {
       --bg: #eef3fb;
-      --card: rgba(255,255,255,0.88);
+      --card: rgba(255,255,255,0.92);
       --card-strong: #ffffff;
       --text: #0f172a;
       --muted: #64748b;
@@ -130,9 +128,7 @@ function pageTemplate(title, content) {
         radial-gradient(circle at top left, #f8fbff 0%, #eef3fb 45%, #e8eef9 100%);
     }
 
-    body {
-      min-height: 100vh;
-    }
+    body { min-height: 100vh; }
 
     .container {
       max-width: 1180px;
@@ -409,11 +405,17 @@ function pageTemplate(title, content) {
 
     .match-card {
       border: 1px solid #e2e8f0;
-      border-radius: 22px;
-      padding: 20px;
+      border-radius: 24px;
+      padding: 22px;
       margin-bottom: 16px;
       background: linear-gradient(180deg, #ffffff, #f8fbff);
       box-shadow: 0 10px 22px rgba(15, 23, 42, 0.04);
+      transition: 0.18s ease;
+    }
+
+    .match-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 28px rgba(15, 23, 42, 0.07);
     }
 
     .league {
@@ -451,6 +453,7 @@ function pageTemplate(title, content) {
       border-radius: 20px;
       font-size: 17px;
       font-weight: 800;
+      line-height: 1.35;
     }
 
     .odds button:nth-child(1) {
@@ -463,6 +466,11 @@ function pageTemplate(title, content) {
 
     .odds button:nth-child(3) {
       background: linear-gradient(180deg, #5b43e6, #4338ca);
+    }
+
+    .betslip-shell {
+      position: sticky;
+      top: 18px;
     }
 
     .bet-row, .history-row, .user-row {
@@ -566,6 +574,74 @@ function pageTemplate(title, content) {
       word-break: break-word;
     }
 
+    .slip-balance {
+      background: linear-gradient(180deg, #f0fdf4, #dcfce7);
+      border: 2px solid #bbf7d0;
+    }
+
+    .slip-empty {
+      text-align: center;
+      padding: 22px;
+      border: 2px dashed #c7d7ee;
+      background: linear-gradient(180deg, #f8fbff, #eef5ff);
+    }
+
+    .slip-selected {
+      border-radius: 22px;
+      padding: 18px;
+      background: linear-gradient(180deg, #f8fbff, #eef4ff);
+      border: 1px solid #d7e6fb;
+      margin-bottom: 12px;
+    }
+
+    .slip-selected .small {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    .slip-selected .big {
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+
+    .slip-selection {
+      color: #64748b;
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+
+    .slip-win {
+      border-radius: 20px;
+      padding: 18px;
+      background: linear-gradient(180deg, #eef7ff, #e0efff);
+      border: 1px solid #cfe2ff;
+      margin-top: 8px;
+      margin-bottom: 12px;
+    }
+
+    .slip-win-label {
+      color: #64748b;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    .slip-win-value {
+      font-size: 42px;
+      font-weight: 800;
+      color: var(--blue-dark);
+      line-height: 1;
+    }
+
+    .section-subtitle {
+      color: var(--muted);
+      margin-top: -4px;
+      margin-bottom: 14px;
+      line-height: 1.7;
+    }
+
     @media (max-width: 900px) {
       .two-cols {
         grid-template-columns: 1fr;
@@ -594,6 +670,10 @@ function pageTemplate(title, content) {
       .stat {
         min-height: unset;
       }
+
+      .betslip-shell {
+        position: static;
+      }
     }
 
     @media (max-width: 560px) {
@@ -606,21 +686,21 @@ function pageTemplate(title, content) {
         border-radius: 22px;
       }
 
-      h1 {
-        font-size: 28px;
-      }
-
-      h2 {
-        font-size: 24px;
-      }
+      h1 { font-size: 28px; }
+      h2 { font-size: 24px; }
 
       .match-title,
-      .bet-title {
+      .bet-title,
+      .slip-selected .big {
         font-size: 20px;
       }
 
       .stat .value {
         font-size: 24px;
+      }
+
+      .slip-win-value {
+        font-size: 34px;
       }
 
       .action-row {
@@ -1186,7 +1266,7 @@ app.get("/matches", async (req, res) => {
   const html = await renderLayout(req, "Matches", `
     <div class="card">
       <h1>Matches</h1>
-      <p class="muted">Choose an outcome, enter your stake, and place a bet from the bet slip.</p>
+      <p class="section-subtitle">Choose an outcome, enter your stake, and place a bet from the bet slip.</p>
     </div>
 
     <div class="two-cols">
@@ -1217,38 +1297,40 @@ app.get("/matches", async (req, res) => {
         `).join("")}
       </div>
 
-      <div class="card">
-        <h2>Bet slip</h2>
+      <div class="betslip-shell">
+        <div class="card">
+          <h2>Bet slip</h2>
 
-        <div class="stat" style="margin-bottom:16px; background:#f0fdf4; border:2px solid #bbf7d0;">
-          <div class="label" style="color:#166534;">Current balance</div>
-          <div class="value" id="balanceBox" style="color:#166534;">${user.balance}</div>
-        </div>
-
-        <div id="emptySlip" class="info-box">
-          <p class="muted" style="margin:0;">Choose any match outcome to prepare your bet.</p>
-        </div>
-
-        <div id="slipContent" style="display:none;">
-          <div class="stat">
-            <div class="label">Your selected outcome</div>
-            <div class="value" style="font-size:18px;" id="slipMatch"></div>
-            <div class="muted" id="slipSelection" style="margin-top:8px;"></div>
-            <div style="margin-top:8px;"><strong>Odds:</strong> <span id="slipOdds"></span></div>
+          <div class="stat slip-balance" style="margin-bottom:16px;">
+            <div class="label" style="color:#166534;">Current balance</div>
+            <div class="value" id="balanceBox" style="color:#166534;">${user.balance}</div>
           </div>
 
-          <input id="slipStake" placeholder="Stake" oninput="updateWin()" />
-
-          <div class="stat">
-            <div class="label">Potential return</div>
-            <div style="font-size:18px; font-weight:bold; margin-bottom:8px;">Possible win</div>
-            <div class="value" id="possibleWin">0</div>
+          <div id="emptySlip" class="slip-empty">
+            <p class="muted" style="margin:0;">Choose any match outcome to prepare your bet.</p>
           </div>
 
-          <button onclick="placeBet()">Place bet</button>
-        </div>
+          <div id="slipContent" style="display:none;">
+            <div class="slip-selected">
+              <div class="small">Your selected outcome</div>
+              <div class="big" id="slipMatch"></div>
+              <div class="slip-selection" id="slipSelection"></div>
+              <div><strong>Odds:</strong> <span id="slipOdds"></span></div>
+            </div>
 
-        <div id="msg" class="message"></div>
+            <input id="slipStake" placeholder="Stake" oninput="updateWin()" />
+
+            <div class="slip-win">
+              <div class="slip-win-label">Potential return</div>
+              <div style="font-size:18px; font-weight:bold; margin-bottom:8px;">Possible win</div>
+              <div class="slip-win-value" id="possibleWin">0</div>
+            </div>
+
+            <button onclick="placeBet()">Place bet</button>
+          </div>
+
+          <div id="msg" class="message"></div>
+        </div>
       </div>
     </div>
 
@@ -1290,7 +1372,8 @@ app.get("/matches", async (req, res) => {
       function updateWin() {
         if (!selectedBet) return;
         const stake = Number(document.getElementById("slipStake").value || 0);
-        document.getElementById("possibleWin").textContent = stake * selectedBet.odds || 0;
+        const value = stake * selectedBet.odds;
+        document.getElementById("possibleWin").textContent = value ? value : 0;
       }
 
       async function placeBet() {
@@ -1401,13 +1484,8 @@ app.get("/dashboard", async (req, res) => {
           const loses = bets.filter(b => normalizeStatus(b.status) === "lose").length;
 
           const totalStaked = bets.reduce((sum, b) => sum + Number(b.stake || 0), 0);
-          const totalWon = history
-            .filter(h => h.type === "bet_win")
-            .reduce((sum, h) => sum + Number(h.amount || 0), 0);
-          const totalRefund = history
-            .filter(h => h.type === "bet_refund")
-            .reduce((sum, h) => sum + Number(h.amount || 0), 0);
-
+          const totalWon = history.filter(h => h.type === "bet_win").reduce((sum, h) => sum + Number(h.amount || 0), 0);
+          const totalRefund = history.filter(h => h.type === "bet_refund").reduce((sum, h) => sum + Number(h.amount || 0), 0);
           const profit = totalWon + totalRefund - totalStaked;
 
           document.getElementById("dashboardContent").innerHTML = \`
