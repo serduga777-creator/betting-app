@@ -1,4 +1,4 @@
-requireе("dotenv").config();
+require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
@@ -8,6 +8,8 @@ const pool = require("./db");
 
 const app = express();
 const ADMIN_EMAIL = "admin@test.com";
+const DAILY_REWARD_BALANCE = 50;
+const DAILY_REWARD_XP = 15;
 
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
@@ -66,6 +68,26 @@ function getLevelInfo(xp) {
     currentLevelXp,
     nextLevelXp,
     percent
+  };
+}
+
+function getDateKey(dateValue) {
+  const d = new Date(dateValue);
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getDailyRewardInfo(lastRewardAt) {
+  const todayKey = getDateKey(new Date());
+  const lastKey = lastRewardAt ? getDateKey(lastRewardAt) : null;
+  const canClaim = todayKey !== lastKey;
+
+  return {
+    canClaim,
+    todayKey,
+    lastClaimDate: lastKey
   };
 }
 
@@ -292,6 +314,12 @@ function page(title, content) {
         gap: 14px;
       }
 
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 14px;
+      }
+
       .two-cols {
         display: grid;
         grid-template-columns: 1.45fr 1fr;
@@ -406,7 +434,7 @@ function page(title, content) {
         color: #bfdbfe;
       }
 
-      .bet-row, .history-row, .user-row, .leader-row {
+      .bet-row, .history-row, .user-row, .leader-row, .achievement-row, .reward-row {
         padding: 16px;
         border-radius: 18px;
         background: rgba(15, 23, 42, 0.72);
@@ -548,6 +576,74 @@ function page(title, content) {
         font-weight: 800;
       }
 
+      .achievement-row {
+        display: grid;
+        grid-template-columns: 72px 1fr auto;
+        gap: 14px;
+        align-items: center;
+      }
+
+      .achievement-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        background: rgba(139,92,246,0.14);
+        border: 1px solid rgba(139,92,246,0.35);
+      }
+
+      .achievement-title {
+        font-size: 18px;
+        font-weight: 800;
+        margin-bottom: 4px;
+      }
+
+      .achievement-desc {
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .achievement-badge {
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+        background: rgba(34,197,94,0.18);
+        color: #86efac;
+        border: 1px solid rgba(34,197,94,0.35);
+      }
+
+      .reward-row {
+        text-align: center;
+        padding: 24px;
+      }
+
+      .reward-big {
+        font-size: 44px;
+        font-weight: 900;
+        margin-bottom: 8px;
+      }
+
+      .reward-sub {
+        color: var(--muted);
+        font-size: 16px;
+        margin-bottom: 18px;
+      }
+
+      .reward-bonus {
+        display: inline-block;
+        padding: 10px 14px;
+        border-radius: 14px;
+        background: rgba(34,197,94,0.16);
+        border: 1px solid rgba(34,197,94,0.35);
+        color: #86efac;
+        font-weight: 800;
+        margin: 4px;
+      }
+
       @media (max-width: 900px) {
         .two-cols {
           grid-template-columns: 1fr;
@@ -569,7 +665,8 @@ function page(title, content) {
           font-size: 16px;
         }
 
-        .leader-row {
+        .leader-row,
+        .achievement-row {
           grid-template-columns: 1fr;
           text-align: left;
         }
@@ -587,6 +684,122 @@ function page(title, content) {
   </body>
   </html>
   `;
+}
+
+async function getUserAchievements(userId) {
+  const userResult = await pool.query(
+    "SELECT * FROM users WHERE id = $1 LIMIT 1",
+    [userId]
+  );
+
+  if (!userResult.rows.length) return [];
+
+  const user = userResult.rows[0];
+  const betsResult = await pool.query(
+    "SELECT * FROM bets WHERE user_id = $1 ORDER BY id DESC",
+    [userId]
+  );
+
+  const bets = betsResult.rows;
+  const totalBets = bets.length;
+  const wins = bets.filter(b => normalizeStatus(b.status) === "win").length;
+  const levelInfo = getLevelInfo(user.xp);
+
+  return [
+    {
+      key: "first_bet",
+      title: "First Bet",
+      description: "Place your first demo bet.",
+      icon: "🎯",
+      unlocked: totalBets >= 1
+    },
+    {
+      key: "three_bets",
+      title: "3 Bets",
+      description: "Place at least 3 bets.",
+      icon: "🎲",
+      unlocked: totalBets >= 3
+    },
+    {
+      key: "first_win",
+      title: "First Win",
+      description: "Win your first settled bet.",
+      icon: "🏅",
+      unlocked: wins >= 1
+    },
+    {
+      key: "three_wins",
+      title: "3 Wins",
+      description: "Reach 3 winning bets.",
+      icon: "🏆",
+      unlocked: wins >= 3
+    },
+    {
+      key: "level_five",
+      title: "Level 5",
+      description: "Reach player level 5.",
+      icon: "⚡",
+      unlocked: levelInfo.level >= 5
+    },
+    {
+      key: "balance_1200",
+      title: "Balance 1200+",
+      description: "Grow your balance to 1200 or more.",
+      icon: "💰",
+      unlocked: Number(user.balance) >= 1200
+    }
+  ];
+}
+
+async function getDailyQuests(userId) {
+  const todayKey = getDateKey(new Date());
+
+  const betsResult = await pool.query(
+    "SELECT * FROM bets WHERE user_id = $1 ORDER BY id DESC",
+    [userId]
+  );
+
+  const historyResult = await pool.query(
+    "SELECT * FROM balance_history WHERE user_id = $1 ORDER BY id DESC",
+    [userId]
+  );
+
+  const betsToday = betsResult.rows.filter(row => {
+    if (!row.created_at) return false;
+    return getDateKey(row.created_at) === todayKey;
+  }).length;
+
+  const claimedRewardToday = historyResult.rows.some(row => {
+    if (!row.created_at) return false;
+    return row.type === "daily_reward" && getDateKey(row.created_at) === todayKey;
+  });
+
+  return [
+    {
+      key: "quest_bet_1",
+      title: "Place 1 Bet",
+      description: "Place at least 1 bet today.",
+      icon: "🎯",
+      done: betsToday >= 1,
+      progressText: `${Math.min(betsToday, 1)}/1`
+    },
+    {
+      key: "quest_bet_3",
+      title: "Place 3 Bets",
+      description: "Place at least 3 bets today.",
+      icon: "🔥",
+      done: betsToday >= 3,
+      progressText: `${Math.min(betsToday, 3)}/3`
+    },
+    {
+      key: "quest_daily_reward",
+      title: "Claim Daily Reward",
+      description: "Claim today's daily reward.",
+      icon: "🎁",
+      done: claimedRewardToday,
+      progressText: claimedRewardToday ? "1/1" : "0/1"
+    }
+  ];
 }
 
 async function renderLayout(req, title, innerHtml) {
@@ -613,6 +826,9 @@ async function renderLayout(req, title, innerHtml) {
       <a href="/matches">Matches</a>
       <a href="/dashboard">Dashboard</a>
       <a href="/leaderboard">Leaderboard</a>
+      <a href="/achievements">Achievements</a>
+      <a href="/daily-reward">Daily Reward</a>
+      <a href="/daily-quests">Daily Quests</a>
       <a href="/balance-history">Balance History</a>
       ${admin ? `<a href="/admin">Admin</a>` : ""}
       ${admin ? `<a href="/users">Users</a>` : ""}
@@ -646,7 +862,7 @@ app.get("/", async (req, res) => {
   const html = await renderLayout(req, "Home", `
     <div class="hero">
       <h1>Night Arena</h1>
-      <p>Dark game-style betting simulator with virtual balance, XP, levels, leaderboard and admin settlement. No real money.</p>
+      <p>Dark game-style betting simulator with virtual balance, XP, levels, leaderboard, achievements, daily rewards and daily quests. No real money.</p>
     </div>
 
     <div class="grid">
@@ -661,8 +877,8 @@ app.get("/", async (req, res) => {
       </div>
 
       <div class="card">
-        <h3>🏆 Leaderboard</h3>
-        <p class="muted">Compete with other players and climb the XP ranking.</p>
+        <h3>🎁 Daily systems</h3>
+        <p class="muted">Claim daily rewards and complete daily quests.</p>
       </div>
     </div>
   `);
@@ -679,6 +895,7 @@ app.get("/init-db", async (req, res) => {
         password TEXT,
         balance NUMERIC DEFAULT 1000,
         xp INT DEFAULT 0,
+        last_daily_reward_at TIMESTAMP NULL,
         created_at TIMESTAMP DEFAULT NOW()
       )
     `);
@@ -686,6 +903,11 @@ app.get("/init-db", async (req, res) => {
     await pool.query(`
       ALTER TABLE users
       ADD COLUMN IF NOT EXISTS xp INT DEFAULT 0
+    `);
+
+    await pool.query(`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS last_daily_reward_at TIMESTAMP NULL
     `);
 
     await pool.query(`
@@ -804,6 +1026,117 @@ app.get("/me", async (req, res) => {
         level_current_xp: levelInfo.currentLevelXp,
         level_next_xp: levelInfo.nextLevelXp
       }
+    });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+app.get("/api/achievements", async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.json({ ok: false, message: "Not logged in" });
+
+    const achievements = await getUserAchievements(user.id);
+    res.json({ ok: true, achievements });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+app.get("/api/daily-reward-status", async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.json({ ok: false, message: "Not logged in" });
+
+    const rewardInfo = getDailyRewardInfo(user.last_daily_reward_at);
+    const levelInfo = getLevelInfo(user.xp);
+
+    res.json({
+      ok: true,
+      canClaim: rewardInfo.canClaim,
+      todayKey: rewardInfo.todayKey,
+      lastClaimDate: rewardInfo.lastClaimDate,
+      rewardBalance: DAILY_REWARD_BALANCE,
+      rewardXp: DAILY_REWARD_XP,
+      balance: user.balance,
+      xp: user.xp,
+      level: levelInfo.level
+    });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+app.get("/api/daily-quests", async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.json({ ok: false, message: "Not logged in" });
+
+    const quests = await getDailyQuests(user.id);
+    const completed = quests.filter(q => q.done).length;
+
+    res.json({
+      ok: true,
+      quests,
+      completed,
+      total: quests.length
+    });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+app.post("/claim-daily-reward", async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.json({ ok: false, message: "Not logged in" });
+
+    const rewardInfo = getDailyRewardInfo(user.last_daily_reward_at);
+
+    if (!rewardInfo.canClaim) {
+      return res.json({ ok: false, message: "Daily reward already claimed today" });
+    }
+
+    await pool.query(
+      `UPDATE users
+       SET balance = balance + $1,
+           xp = COALESCE(xp, 0) + $2,
+           last_daily_reward_at = NOW()
+       WHERE id = $3`,
+      [DAILY_REWARD_BALANCE, DAILY_REWARD_XP, user.id]
+    );
+
+    const updatedResult = await pool.query(
+      "SELECT * FROM users WHERE id = $1 LIMIT 1",
+      [user.id]
+    );
+
+    const updatedUser = updatedResult.rows[0];
+    const newBalance = Number(updatedUser.balance);
+    const levelInfo = getLevelInfo(updatedUser.xp);
+
+    await pool.query(
+      `INSERT INTO balance_history (user_id, amount, type, description, bet_id, balance_after)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        user.id,
+        DAILY_REWARD_BALANCE,
+        "daily_reward",
+        `Daily reward claimed (+${DAILY_REWARD_BALANCE} balance, +${DAILY_REWARD_XP} XP)`,
+        null,
+        newBalance
+      ]
+    );
+
+    res.json({
+      ok: true,
+      message: "Daily reward claimed",
+      rewardBalance: DAILY_REWARD_BALANCE,
+      rewardXp: DAILY_REWARD_XP,
+      balance: updatedUser.balance,
+      xp: updatedUser.xp,
+      level: levelInfo.level
     });
   } catch (err) {
     res.json({ ok: false, message: err.message });
@@ -1584,6 +1917,224 @@ app.get("/leaderboard", async (req, res) => {
   res.send(html);
 });
 
+app.get("/achievements", async (req, res) => {
+  const user = await getUser(req);
+  if (!user) {
+    const html = await renderLayout(req, "Achievements", loginRequiredInner("Achievements"));
+    return res.send(html);
+  }
+
+  const html = await renderLayout(req, "Achievements", `
+    <div class="card">
+      <h1>Achievements</h1>
+      <p class="muted">Unlock milestones and grow your player identity.</p>
+      <button onclick="loadAchievements()">Refresh Achievements</button>
+    </div>
+
+    <div id="achievementsContent" class="card">Loading...</div>
+
+    <script>
+      async function loadAchievements() {
+        const res = await fetch("/api/achievements", {
+          credentials: "include",
+          cache: "no-store"
+        });
+
+        const data = await res.json();
+
+        if (!data.ok) {
+          document.getElementById("achievementsContent").innerHTML = "<p class='muted'>Could not load achievements.</p>";
+          return;
+        }
+
+        const items = data.achievements || [];
+        const unlocked = items.filter(i => i.unlocked).length;
+
+        document.getElementById("achievementsContent").innerHTML = \`
+          <h2>Unlocked: \${unlocked} / \${items.length}</h2>
+
+          \${items.map(item => \`
+            <div class="achievement-row" style="opacity:\${item.unlocked ? 1 : 0.55}">
+              <div class="achievement-icon">\${item.icon}</div>
+
+              <div>
+                <div class="achievement-title">\${item.title}</div>
+                <div class="achievement-desc">\${item.description}</div>
+              </div>
+
+              <div>
+                \${item.unlocked ? '<span class="achievement-badge">UNLOCKED</span>' : '<span class="pill">LOCKED</span>'}
+              </div>
+            </div>
+          \`).join("")}
+        \`;
+      }
+
+      loadAchievements();
+    </script>
+  `);
+
+  res.send(html);
+});
+
+app.get("/daily-reward", async (req, res) => {
+  const user = await getUser(req);
+  if (!user) {
+    const html = await renderLayout(req, "Daily Reward", loginRequiredInner("Daily Reward"));
+    return res.send(html);
+  }
+
+  const html = await renderLayout(req, "Daily Reward", `
+    <div class="card">
+      <h1>Daily Reward</h1>
+      <p class="muted">Claim your daily bonus once per day.</p>
+    </div>
+
+    <div id="rewardContent" class="card">Loading...</div>
+
+    <script>
+      function renderReward(data) {
+        const canClaim = data.canClaim;
+
+        document.getElementById("rewardContent").innerHTML = \`
+          <div class="reward-row">
+            <div class="reward-big">🎁 Daily Bonus</div>
+            <div class="reward-sub">
+              Claim once per day to keep your progress moving.
+            </div>
+
+            <div>
+              <span class="reward-bonus">+${DAILY_REWARD_BALANCE} Balance</span>
+              <span class="reward-bonus">+${DAILY_REWARD_XP} XP</span>
+            </div>
+
+            <div class="small-note" style="margin-top:16px;">
+              Last claim: \${data.lastClaimDate || "never"}
+            </div>
+
+            \${canClaim
+              ? '<button class="btn-green" style="max-width:320px;margin:18px auto 0;" onclick="claimReward()">Claim reward</button>'
+              : '<div class="message success" style="display:block;max-width:420px;margin:18px auto 0;">Reward already claimed today</div>'}
+          </div>
+        \`;
+      }
+
+      async function loadReward() {
+        const res = await fetch("/api/daily-reward-status", {
+          credentials: "include",
+          cache: "no-store"
+        });
+
+        const data = await res.json();
+
+        if (!data.ok) {
+          document.getElementById("rewardContent").innerHTML = "<p class='muted'>Could not load reward status.</p>";
+          return;
+        }
+
+        renderReward(data);
+      }
+
+      async function claimReward() {
+        const res = await fetch("/claim-daily-reward", {
+          method: "POST",
+          credentials: "include"
+        });
+
+        const data = await res.json();
+
+        if (!data.ok) {
+          document.getElementById("rewardContent").innerHTML += '<div class="message error" style="display:block;max-width:420px;margin:16px auto 0;">' + (data.message || "Could not claim reward") + '</div>';
+          return;
+        }
+
+        document.getElementById("rewardContent").innerHTML = \`
+          <div class="reward-row">
+            <div class="reward-big">✅ Claimed</div>
+            <div class="reward-sub">Your daily reward has been added.</div>
+            <div>
+              <span class="reward-bonus">+${data.rewardBalance} Balance</span>
+              <span class="reward-bonus">+${data.rewardXp} XP</span>
+            </div>
+            <div class="small-note" style="margin-top:16px;">
+              New balance: \${data.balance} • New XP: \${data.xp} • Level: \${data.level}
+            </div>
+            <div class="message success" style="display:block;max-width:420px;margin:18px auto 0;">
+              Come back tomorrow for the next reward.
+            </div>
+          </div>
+        \`;
+      }
+
+      loadReward();
+    </script>
+  `);
+
+  res.send(html);
+});
+
+app.get("/daily-quests", async (req, res) => {
+  const user = await getUser(req);
+  if (!user) {
+    const html = await renderLayout(req, "Daily Quests", loginRequiredInner("Daily Quests"));
+    return res.send(html);
+  }
+
+  const html = await renderLayout(req, "Daily Quests", `
+    <div class="card">
+      <h1>Daily Quests</h1>
+      <p class="muted">Complete simple daily tasks to keep your activity going.</p>
+      <button onclick="loadDailyQuests()">Refresh Quests</button>
+    </div>
+
+    <div id="questsContent" class="card">Loading...</div>
+
+    <script>
+      async function loadDailyQuests() {
+        const res = await fetch("/api/daily-quests", {
+          credentials: "include",
+          cache: "no-store"
+        });
+
+        const data = await res.json();
+
+        if (!data.ok) {
+          document.getElementById("questsContent").innerHTML = "<p class='muted'>Could not load daily quests.</p>";
+          return;
+        }
+
+        const quests = data.quests || [];
+
+        document.getElementById("questsContent").innerHTML = \`
+          <h2>Completed: \${data.completed} / \${data.total}</h2>
+
+          \${quests.map(item => \`
+            <div class="achievement-row" style="opacity:\${item.done ? 1 : 0.65}">
+              <div class="achievement-icon">\${item.icon}</div>
+
+              <div>
+                <div class="achievement-title">\${item.title}</div>
+                <div class="achievement-desc">\${item.description}</div>
+                <div class="small-note" style="margin-top:6px;">Progress: \${item.progressText}</div>
+              </div>
+
+              <div>
+                \${item.done
+                  ? '<span class="achievement-badge">DONE</span>'
+                  : '<span class="pill">IN PROGRESS</span>'}
+              </div>
+            </div>
+          \`).join("")}
+        \`;
+      }
+
+      loadDailyQuests();
+    </script>
+  `);
+
+  res.send(html);
+});
+
 app.get("/balance-history", async (req, res) => {
   const user = await getUser(req);
   if (!user) {
@@ -1594,7 +2145,7 @@ app.get("/balance-history", async (req, res) => {
   const html = await renderLayout(req, "Balance History", `
     <div class="card">
       <h1>Balance History</h1>
-      <p class="muted">All balance movements: stakes, refunds and win payouts.</p>
+      <p class="muted">All balance movements: stakes, refunds, win payouts and rewards.</p>
       <button onclick="loadHistory()">Refresh History</button>
     </div>
 
@@ -1783,7 +2334,7 @@ app.get("/users", async (req, res) => {
 
   try {
     const result = await pool.query(
-      "SELECT id, email, balance, xp, created_at FROM users ORDER BY id DESC"
+      "SELECT id, email, balance, xp, created_at, last_daily_reward_at FROM users ORDER BY id DESC"
     );
 
     if (req.query.format === "json") {
@@ -1793,7 +2344,7 @@ app.get("/users", async (req, res) => {
     const html = await renderLayout(req, "Users", `
       <div class="card">
         <h1>Users</h1>
-        <p class="muted">Player list with balance and XP.</p>
+        <p class="muted">Player list with balance, XP and reward info.</p>
       </div>
 
       <div class="card">
@@ -1806,6 +2357,7 @@ app.get("/users", async (req, res) => {
               <div><strong>Balance:</strong> ${row.balance}</div>
               <div><strong>XP:</strong> ${row.xp || 0}</div>
               <div><strong>Level:</strong> ${levelInfo.level}</div>
+              <div><strong>Last daily reward:</strong> ${row.last_daily_reward_at || "-"}</div>
               <div><strong>Created:</strong> ${row.created_at}</div>
             </div>
           `;
