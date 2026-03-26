@@ -2483,3 +2483,29 @@ const port = process.env.PORT || 3000;
 app.listen(port, "0.0.0.0", () => {
   console.log("Running on port", port);
 });
+// DAILY QUESTS (гости)
+app.get("/daily-guests", (req, res) => {
+  res.json({
+    ok: true,
+    quests: [
+      {
+        id: 1,
+        title: "Place 1 bet",
+        reward: 5,
+        done: false
+      },
+      {
+        id: 2,
+        title: "Win 1 bet",
+        reward: 10,
+        done: false
+      },
+      {
+        id: 3,
+        title: "Stake 20 total",
+        reward: 15,
+        done: false
+      }
+    ]
+  });
+});
