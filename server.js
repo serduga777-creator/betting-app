@@ -36,6 +36,63 @@ const demoMatches = [
   }
 ];
 
+const SHOP_ITEMS = [
+  {
+    key: "badge_bronze",
+    type: "badge",
+    title: "Bronze Badge",
+    description: "Simple bronze player badge.",
+    price: 120,
+    icon: "🥉",
+    value: "Bronze"
+  },
+  {
+    key: "badge_silver",
+    type: "badge",
+    title: "Silver Badge",
+    description: "Clean silver player badge.",
+    price: 220,
+    icon: "🥈",
+    value: "Silver"
+  },
+  {
+    key: "badge_gold",
+    type: "badge",
+    title: "Gold Badge",
+    description: "Premium gold player badge.",
+    price: 350,
+    icon: "🥇",
+    value: "Gold"
+  },
+  {
+    key: "theme_neon",
+    type: "theme",
+    title: "Neon Theme",
+    description: "Blue-violet neon profile style.",
+    price: 180,
+    icon: "💜",
+    value: "neon"
+  },
+  {
+    key: "theme_fire",
+    type: "theme",
+    title: "Fire Theme",
+    description: "Hot orange-red profile style.",
+    price: 260,
+    icon: "🔥",
+    value: "fire"
+  },
+  {
+    key: "theme_ice",
+    type: "theme",
+    title: "Ice Theme",
+    description: "Cool blue-white profile style.",
+    price: 260,
+    icon: "❄️",
+    value: "ice"
+  }
+];
+
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -93,6 +150,36 @@ function getDailyRewardInfo(lastRewardAt) {
   };
 }
 
+function themeStyle(theme) {
+  const t = String(theme || "default");
+
+  if (t === "neon") {
+    return {
+      bg: "linear-gradient(135deg, rgba(59,130,246,0.18), rgba(139,92,246,0.22))",
+      border: "1px solid rgba(139,92,246,0.6)"
+    };
+  }
+
+  if (t === "fire") {
+    return {
+      bg: "linear-gradient(135deg, rgba(239,68,68,0.18), rgba(249,115,22,0.22))",
+      border: "1px solid rgba(249,115,22,0.55)"
+    };
+  }
+
+  if (t === "ice") {
+    return {
+      bg: "linear-gradient(135deg, rgba(56,189,248,0.16), rgba(226,232,240,0.14))",
+      border: "1px solid rgba(125,211,252,0.55)"
+    };
+  }
+
+  return {
+    bg: "rgba(15, 23, 42, 0.72)",
+    border: "1px solid #273449"
+  };
+}
+
 async function getUser(req) {
   if (!req.session.userId) return null;
 
@@ -107,6 +194,37 @@ async function getUser(req) {
   }
 
   return result.rows[0];
+}
+
+async function getOwnedShopRows(userId) {
+  const result = await pool.query(
+    "SELECT * FROM shop_purchases WHERE user_id = $1 ORDER BY id DESC",
+    [userId]
+  );
+  return result.rows;
+}
+
+async function getShopState(userId) {
+  const userResult = await pool.query(
+    "SELECT * FROM users WHERE id = $1 LIMIT 1",
+    [userId]
+  );
+
+  if (!userResult.rows.length) return null;
+
+  const user = userResult.rows[0];
+  const purchases = await getOwnedShopRows(userId);
+  const ownedKeys = purchases.map(x => x.item_key);
+
+  const items = SHOP_ITEMS.map(item => ({
+    ...item,
+    owned: ownedKeys.includes(item.key),
+    active:
+      (item.type === "badge" && user.active_badge === item.value) ||
+      (item.type === "theme" && String(user.active_theme || "default") === item.value)
+  }));
+
+  return { user, items };
 }
 
 function isAdmin(user) {
@@ -197,7 +315,7 @@ function layout(title, user, content) {
         grid-template-columns: 1.45fr 1fr;
         gap: 16px;
       }
-      .match, .bet-row, .history-row, .user-row, .leader-row {
+      .match, .bet-row, .history-row, .user-row, .leader-row, .shop-row {
         background: rgba(15, 23, 42, 0.72);
         border: 1px solid #273449;
         border-radius: 16px;
@@ -346,6 +464,15 @@ function layout(title, user, content) {
         height: 100%;
         background: linear-gradient(90deg, #3b82f6, #8b5cf6);
       }
+      .profile-card {
+        border-radius: 18px;
+        padding: 18px;
+        margin-bottom: 16px;
+      }
+      .shop-icon {
+        font-size: 40px;
+        margin-bottom: 10px;
+      }
 
       @media (max-width: 900px) {
         .two-cols { grid-template-columns: 1fr; }
@@ -374,6 +501,7 @@ function layout(title, user, content) {
         <a href="/dashboard">Dashboard</a>
         <a href="/leaderboard">Leaderboard</a>
         <a href="/daily-reward">Daily Reward</a>
+        <a href="/shop">Shop</a>
         <a href="/balance-history">Balance History</a>
         ${user && isAdmin(user) ? `<a href="/admin">Admin</a>` : ""}
         ${user && isAdmin(user) ? `<a href="/users">Users</a>` : ""}
@@ -420,6 +548,8 @@ app.get("/init-db", async (req, res) => {
         balance NUMERIC DEFAULT 1000,
         xp INT DEFAULT 0,
         last_daily_reward_at TIMESTAMP NULL,
+        active_badge TEXT DEFAULT NULL,
+        active_theme TEXT DEFAULT 'default',
         created_at TIMESTAMP DEFAULT NOW()
       )
     `);
@@ -432,6 +562,28 @@ app.get("/init-db", async (req, res) => {
     await pool.query(`
       ALTER TABLE users
       ADD COLUMN IF NOT EXISTS last_daily_reward_at TIMESTAMP NULL
+    `);
+
+    await pool.query(`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS active_badge TEXT DEFAULT NULL
+    `);
+
+    await pool.query(`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS active_theme TEXT DEFAULT 'default'
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS shop_purchases (
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL,
+        item_key TEXT NOT NULL,
+        item_type TEXT NOT NULL,
+        item_title TEXT NOT NULL,
+        price NUMERIC NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
     `);
 
     await pool.query(`
@@ -473,7 +625,7 @@ app.get("/", async (req, res) => {
   res.send(layout("Home", user, `
     <div class="hero">
       <h1>Night Arena</h1>
-      <p>Dark game-style betting simulator with virtual balance, XP, level system, daily rewards and leaderboard. No real money.</p>
+      <p>Dark game-style betting simulator with virtual balance, XP, level system, daily rewards, leaderboard and shop. No real money.</p>
     </div>
 
     <div class="grid">
@@ -486,8 +638,8 @@ app.get("/", async (req, res) => {
         <p class="muted">Gain XP for betting and wins. Grow your level over time.</p>
       </div>
       <div class="card">
-        <h3>🎁 Daily reward</h3>
-        <p class="muted">Claim a free bonus once per day.</p>
+        <h3>🛍️ Player shop</h3>
+        <p class="muted">Buy badges and profile themes using virtual balance.</p>
       </div>
     </div>
   `));
@@ -559,7 +711,7 @@ app.post("/register", async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
 
     const result = await pool.query(
-      "INSERT INTO users (email, password, xp) VALUES ($1, $2, 0) RETURNING *",
+      "INSERT INTO users (email, password, xp, active_theme) VALUES ($1, $2, 0, 'default') RETURNING *",
       [email, hash]
     );
 
@@ -666,7 +818,9 @@ app.get("/me", async (req, res) => {
         level: levelInfo.level,
         level_progress_percent: levelInfo.percent,
         level_current_xp: levelInfo.currentLevelXp,
-        level_next_xp: levelInfo.nextLevelXp
+        level_next_xp: levelInfo.nextLevelXp,
+        active_badge: user.active_badge,
+        active_theme: user.active_theme || "default"
       }
     });
   } catch (err) {
@@ -894,7 +1048,7 @@ app.get("/dashboard", async (req, res) => {
   res.send(layout("Dashboard", user, `
     <div class="card">
       <h1>Player Dashboard</h1>
-      <p class="muted">Track your level, XP, balance and betting performance.</p>
+      <p class="muted">Track your level, XP, balance, style and betting performance.</p>
       <div class="row-buttons">
         <button onclick="loadDashboard()">Refresh Dashboard</button>
         <button class="btn-gray" onclick="logoutNow()">Logout</button>
@@ -924,6 +1078,36 @@ app.get("/dashboard", async (req, res) => {
         return String(status || "").trim().toLowerCase();
       }
 
+      function getThemeStyles(theme) {
+        const t = String(theme || "default");
+
+        if (t === "neon") {
+          return {
+            bg: "linear-gradient(135deg, rgba(59,130,246,0.18), rgba(139,92,246,0.22))",
+            border: "1px solid rgba(139,92,246,0.6)"
+          };
+        }
+
+        if (t === "fire") {
+          return {
+            bg: "linear-gradient(135deg, rgba(239,68,68,0.18), rgba(249,115,22,0.22))",
+            border: "1px solid rgba(249,115,22,0.55)"
+          };
+        }
+
+        if (t === "ice") {
+          return {
+            bg: "linear-gradient(135deg, rgba(56,189,248,0.16), rgba(226,232,240,0.14))",
+            border: "1px solid rgba(125,211,252,0.55)"
+          };
+        }
+
+        return {
+          bg: "rgba(15, 23, 42, 0.72)",
+          border: "1px solid #273449"
+        };
+      }
+
       async function loadDashboard() {
         try {
           const meRes = await fetch("/me", { credentials: "include", cache: "no-store" });
@@ -951,16 +1135,25 @@ app.get("/dashboard", async (req, res) => {
           const loses = bets.filter(b => normalizeStatus(b.status) === "lose").length;
 
           const totalStaked = bets.reduce((sum, b) => sum + Number(b.stake || 0), 0);
-          const totalWon = history
-            .filter(h => h.type === "bet_win")
-            .reduce((sum, h) => sum + Number(h.amount || 0), 0);
-          const totalReward = history
-            .filter(h => h.type === "daily_reward")
-            .reduce((sum, h) => sum + Number(h.amount || 0), 0);
+          const totalWon = history.filter(h => h.type === "bet_win").reduce((sum, h) => sum + Number(h.amount || 0), 0);
+          const totalReward = history.filter(h => h.type === "daily_reward").reduce((sum, h) => sum + Number(h.amount || 0), 0);
+          const totalShopSpend = history.filter(h => h.type === "shop_purchase").reduce((sum, h) => sum + Math.abs(Number(h.amount || 0)), 0);
 
-          const profit = totalWon + totalReward - totalStaked;
+          const profit = totalWon + totalReward - totalStaked - totalShopSpend;
+          const theme = getThemeStyles(meData.user.active_theme);
 
           document.getElementById("dashboardContent").innerHTML = \`
+            <div class="profile-card" style="background:\${theme.bg}; border:\${theme.border};">
+              <div class="muted" style="margin-bottom:8px;">PROFILE CARD</div>
+              <div style="font-size:24px; font-weight:800; margin-bottom:8px;">\${meData.user.email}</div>
+              <div class="row-buttons">
+                <span class="pill violet">Level \${meData.user.level}</span>
+                <span class="pill blue">XP \${meData.user.xp}</span>
+                <span class="pill">Theme: \${meData.user.active_theme}</span>
+                \${meData.user.active_badge ? '<span class="pill green">Badge: ' + meData.user.active_badge + '</span>' : ''}
+              </div>
+            </div>
+
             <h2>Profile</h2>
 
             <div class="stat-grid" style="margin-bottom:16px;">
@@ -996,7 +1189,7 @@ app.get("/dashboard", async (req, res) => {
               <div class="stat"><div class="stat-label">Pending</div><div class="stat-value">\${pending}</div></div>
               <div class="stat"><div class="stat-label">Wins</div><div class="stat-value">\${wins}</div></div>
               <div class="stat"><div class="stat-label">Loses</div><div class="stat-value">\${loses}</div></div>
-              <div class="stat"><div class="stat-label">Total staked</div><div class="stat-value">\${totalStaked}</div></div>
+              <div class="stat"><div class="stat-label">Shop spent</div><div class="stat-value">\${totalShopSpend}</div></div>
               <div class="stat"><div class="stat-label">Profit</div><div class="stat-value">\${profit}</div></div>
             </div>
 
@@ -1191,6 +1384,255 @@ app.post("/claim-daily-reward", async (req, res) => {
   }
 });
 
+app.get("/shop", async (req, res) => {
+  const user = await getUser(req);
+  if (!user) return res.send(layout("Shop", user, loginRequiredPage("Shop")));
+
+  res.send(layout("Shop", user, `
+    <div class="card">
+      <h1>Shop</h1>
+      <p class="muted">Buy badges and profile themes using virtual balance.</p>
+      <button onclick="loadShop()">Refresh Shop</button>
+      <div id="shopMsg" class="message"></div>
+    </div>
+
+    <div id="shopContent" class="card">Loading...</div>
+
+    <script>
+      function showShopMessage(text, type) {
+        const box = document.getElementById("shopMsg");
+        box.className = "message " + type;
+        box.style.display = "block";
+        box.textContent = text;
+      }
+
+      async function buyItem(itemKey) {
+        const res = await fetch("/buy-shop-item", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ itemKey })
+        });
+
+        const data = await res.json();
+
+        if (!data.ok) {
+          showShopMessage(data.message || "Could not buy item", "error");
+          return;
+        }
+
+        showShopMessage("Item purchased successfully", "success");
+        loadShop();
+      }
+
+      async function equipItem(itemKey) {
+        const res = await fetch("/equip-shop-item", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ itemKey })
+        });
+
+        const data = await res.json();
+
+        if (!data.ok) {
+          showShopMessage(data.message || "Could not equip item", "error");
+          return;
+        }
+
+        showShopMessage("Item equipped", "success");
+        loadShop();
+      }
+
+      async function loadShop() {
+        const res = await fetch("/api/shop", {
+          credentials: "include",
+          cache: "no-store"
+        });
+
+        const data = await res.json();
+
+        if (!data.ok) {
+          document.getElementById("shopContent").innerHTML = "<p class='muted'>Could not load shop.</p>";
+          return;
+        }
+
+        const items = data.items || [];
+
+        document.getElementById("shopContent").innerHTML = \`
+          <h2>Balance: \${data.balance}</h2>
+
+          <div class="grid">
+            \${items.map(item => \`
+              <div class="shop-row">
+                <div class="shop-icon">\${item.icon}</div>
+                <h3>\${item.title}</h3>
+                <div class="muted">\${item.description}</div>
+                <div class="muted" style="margin-top:8px;">Type: \${item.type}</div>
+                <div class="muted">Price: \${item.price}</div>
+
+                \${item.active
+                  ? '<div class="message success" style="display:block; margin-top:12px;">ACTIVE</div>'
+                  : item.owned
+                    ? '<button class="btn-green" onclick="equipItem(\\'' + item.key + '\\')">Equip</button>'
+                    : '<button onclick="buyItem(\\'' + item.key + '\\')">Buy</button>'}
+              </div>
+            \`).join("")}
+          </div>
+        \`;
+      }
+
+      loadShop();
+    </script>
+  `));
+});
+
+app.get("/api/shop", async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.json({ ok: false, message: "Not logged in" });
+
+    const state = await getShopState(user.id);
+    if (!state) return res.json({ ok: false, message: "User not found" });
+
+    res.json({
+      ok: true,
+      balance: state.user.balance,
+      active_badge: state.user.active_badge,
+      active_theme: state.user.active_theme || "default",
+      items: state.items
+    });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+app.post("/buy-shop-item", async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.json({ ok: false, message: "Not logged in" });
+
+    const { itemKey } = req.body;
+    const item = SHOP_ITEMS.find(x => x.key === itemKey);
+
+    if (!item) {
+      return res.json({ ok: false, message: "Item not found" });
+    }
+
+    const ownedResult = await pool.query(
+      "SELECT id FROM shop_purchases WHERE user_id = $1 AND item_key = $2 LIMIT 1",
+      [user.id, item.key]
+    );
+
+    if (ownedResult.rows.length) {
+      return res.json({ ok: false, message: "Item already owned" });
+    }
+
+    const freshUserResult = await pool.query(
+      "SELECT * FROM users WHERE id = $1 LIMIT 1",
+      [user.id]
+    );
+
+    const freshUser = freshUserResult.rows[0];
+
+    if (Number(freshUser.balance) < Number(item.price)) {
+      return res.json({ ok: false, message: "Not enough balance" });
+    }
+
+    await pool.query(
+      "UPDATE users SET balance = balance - $1 WHERE id = $2",
+      [item.price, user.id]
+    );
+
+    await pool.query(
+      `INSERT INTO shop_purchases (user_id, item_key, item_type, item_title, price)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [user.id, item.key, item.type, item.title, item.price]
+    );
+
+    const updatedUserResult = await pool.query(
+      "SELECT * FROM users WHERE id = $1 LIMIT 1",
+      [user.id]
+    );
+
+    const updatedUser = updatedUserResult.rows[0];
+
+    await pool.query(
+      `INSERT INTO balance_history (user_id, amount, type, description, bet_id, balance_after)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        user.id,
+        -Math.abs(Number(item.price)),
+        "shop_purchase",
+        `Shop purchase: ${item.title}`,
+        null,
+        Number(updatedUser.balance)
+      ]
+    );
+
+    res.json({
+      ok: true,
+      message: "Item purchased",
+      balance: updatedUser.balance
+    });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+app.post("/equip-shop-item", async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.json({ ok: false, message: "Not logged in" });
+
+    const { itemKey } = req.body;
+    const item = SHOP_ITEMS.find(x => x.key === itemKey);
+
+    if (!item) {
+      return res.json({ ok: false, message: "Item not found" });
+    }
+
+    const ownedResult = await pool.query(
+      "SELECT id FROM shop_purchases WHERE user_id = $1 AND item_key = $2 LIMIT 1",
+      [user.id, item.key]
+    );
+
+    if (!ownedResult.rows.length) {
+      return res.json({ ok: false, message: "You do not own this item" });
+    }
+
+    if (item.type === "badge") {
+      await pool.query(
+        "UPDATE users SET active_badge = $1 WHERE id = $2",
+        [item.value, user.id]
+      );
+    }
+
+    if (item.type === "theme") {
+      await pool.query(
+        "UPDATE users SET active_theme = $1 WHERE id = $2",
+        [item.value, user.id]
+      );
+    }
+
+    const updatedUserResult = await pool.query(
+      "SELECT * FROM users WHERE id = $1 LIMIT 1",
+      [user.id]
+    );
+
+    const updatedUser = updatedUserResult.rows[0];
+
+    res.json({
+      ok: true,
+      message: "Item equipped",
+      active_badge: updatedUser.active_badge,
+      active_theme: updatedUser.active_theme || "default"
+    });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
 app.get("/balance-history", async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.send(layout("Balance History", user, loginRequiredPage("Balance History")));
@@ -1198,7 +1640,7 @@ app.get("/balance-history", async (req, res) => {
   res.send(layout("Balance History", user, `
     <div class="card">
       <h1>Balance History</h1>
-      <p class="muted">All balance movements: stakes, payouts and rewards.</p>
+      <p class="muted">All balance movements: stakes, payouts, rewards and shop purchases.</p>
       <div id="historyBox">Loading...</div>
     </div>
 
@@ -1531,13 +1973,13 @@ app.get("/users", async (req, res) => {
 
   try {
     const result = await pool.query(
-      "SELECT id, email, balance, xp, created_at, last_daily_reward_at FROM users ORDER BY id DESC"
+      "SELECT id, email, balance, xp, active_badge, active_theme, created_at, last_daily_reward_at FROM users ORDER BY id DESC"
     );
 
     res.send(layout("Users", user, `
       <div class="card">
         <h1>Users</h1>
-        <p class="muted">Player list with balance, XP and reward info.</p>
+        <p class="muted">Player list with balance, XP, badge and theme info.</p>
       </div>
 
       <div class="card">
@@ -1550,6 +1992,8 @@ app.get("/users", async (req, res) => {
               <div><strong>Balance:</strong> ${row.balance}</div>
               <div><strong>XP:</strong> ${row.xp || 0}</div>
               <div><strong>Level:</strong> ${levelInfo.level}</div>
+              <div><strong>Badge:</strong> ${row.active_badge || "-"}</div>
+              <div><strong>Theme:</strong> ${row.active_theme || "default"}</div>
               <div><strong>Last daily reward:</strong> ${row.last_daily_reward_at || "-"}</div>
               <div><strong>Created:</strong> ${row.created_at}</div>
             </div>
