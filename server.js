@@ -219,10 +219,8 @@ app.post("/equip-shop-item", async (req,res)=>{
       [item.value,user.id]);
   }
 
-  res.json({ok:true});
-});
-
-app.get("/dashboard", async (req,res)=>{
+  res.json({ok:
+    app.get("/dashboard", async (req,res)=>{
   const user = await getUser(req);
   if(!user) return res.send("login");
 
@@ -243,3 +241,4 @@ app.get("/dashboard", async (req,res)=>{
 });
 
 app.listen(3000,()=>console.log("RUN"));
+
