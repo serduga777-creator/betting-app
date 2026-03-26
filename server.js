@@ -351,19 +351,6 @@ function page(title, content) {
 
       .odds button {
         min-height: 78px;
-        line-height: 1.35;
-      }
-
-      .odds button:nth-child(1) {
-        background: linear-gradient(180deg, #3b82f6, #1d4ed8);
-      }
-
-      .odds button:nth-child(2) {
-        background: linear-gradient(180deg, #22c55e, #16a34a);
-      }
-
-      .odds button:nth-child(3) {
-        background: linear-gradient(180deg, #ef4444, #dc2626);
       }
 
       .slip-box {
@@ -419,7 +406,7 @@ function page(title, content) {
         color: #bfdbfe;
       }
 
-      .bet-row, .history-row, .user-row {
+      .bet-row, .history-row, .user-row, .leader-row {
         padding: 16px;
         border-radius: 18px;
         background: rgba(15, 23, 42, 0.72);
@@ -523,6 +510,44 @@ function page(title, content) {
         margin: 0;
       }
 
+      .leader-row {
+        display: grid;
+        grid-template-columns: 70px 1.5fr 120px 120px 140px;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .leader-rank {
+        font-size: 26px;
+        font-weight: 900;
+      }
+
+      .leader-name {
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      .leader-sub {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 4px;
+      }
+
+      .leader-stat {
+        text-align: center;
+      }
+
+      .leader-stat-label {
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 6px;
+      }
+
+      .leader-stat-value {
+        font-size: 20px;
+        font-weight: 800;
+      }
+
       @media (max-width: 900px) {
         .two-cols {
           grid-template-columns: 1fr;
@@ -542,6 +567,15 @@ function page(title, content) {
 
         .hero p {
           font-size: 16px;
+        }
+
+        .leader-row {
+          grid-template-columns: 1fr;
+          text-align: left;
+        }
+
+        .leader-stat {
+          text-align: left;
         }
       }
     </style>
@@ -578,6 +612,7 @@ async function renderLayout(req, title, innerHtml) {
       <a href="/login">Login</a>
       <a href="/matches">Matches</a>
       <a href="/dashboard">Dashboard</a>
+      <a href="/leaderboard">Leaderboard</a>
       <a href="/balance-history">Balance History</a>
       ${admin ? `<a href="/admin">Admin</a>` : ""}
       ${admin ? `<a href="/users">Users</a>` : ""}
@@ -611,7 +646,7 @@ app.get("/", async (req, res) => {
   const html = await renderLayout(req, "Home", `
     <div class="hero">
       <h1>Night Arena</h1>
-      <p>Dark game-style betting simulator with virtual balance, XP, levels and admin settlement. No real money.</p>
+      <p>Dark game-style betting simulator with virtual balance, XP, levels, leaderboard and admin settlement. No real money.</p>
     </div>
 
     <div class="grid">
@@ -626,8 +661,8 @@ app.get("/", async (req, res) => {
       </div>
 
       <div class="card">
-        <h3>🛡 Admin control</h3>
-        <p class="muted">Settle bets manually from the admin panel and manage the demo flow.</p>
+        <h3>🏆 Leaderboard</h3>
+        <p class="muted">Compete with other players and climb the XP ranking.</p>
       </div>
     </div>
   `);
@@ -1128,6 +1163,28 @@ app.get("/api/balance-history", async (req, res) => {
   }
 });
 
+app.get("/api/leaderboard", async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT id, email, balance, xp, created_at FROM users ORDER BY xp DESC, balance DESC, id ASC LIMIT 50"
+    );
+
+    const players = result.rows.map((row, index) => ({
+      rank: index + 1,
+      id: row.id,
+      email: row.email,
+      balance: row.balance,
+      xp: row.xp || 0,
+      level: getLevelInfo(row.xp).level,
+      created_at: row.created_at
+    }));
+
+    res.json({ ok: true, players });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
 app.get("/matches", async (req, res) => {
   const user = await getUser(req);
   if (!user) {
@@ -1288,8 +1345,6 @@ app.get("/dashboard", async (req, res) => {
     return res.send(html);
   }
 
-  const levelInfo = getLevelInfo(user.xp);
-
   const html = await renderLayout(req, "Dashboard", `
     <div class="card">
       <h1>Player Dashboard</h1>
@@ -1370,7 +1425,6 @@ app.get("/dashboard", async (req, res) => {
           const totalRefund = history
             .filter(h => h.type === "bet_refund")
             .reduce((sum, h) => sum + Number(h.amount || 0), 0);
-
           const profit = totalWon + totalRefund - totalStaked;
 
           document.getElementById("dashboardContent").innerHTML = \`
@@ -1454,6 +1508,76 @@ app.get("/dashboard", async (req, res) => {
       }
 
       loadDashboard();
+    </script>
+  `);
+
+  res.send(html);
+});
+
+app.get("/leaderboard", async (req, res) => {
+  const html = await renderLayout(req, "Leaderboard", `
+    <div class="card">
+      <h1>Leaderboard</h1>
+      <p class="muted">Top players by XP, level and balance.</p>
+      <button onclick="loadLeaderboard()">Refresh Leaderboard</button>
+    </div>
+
+    <div id="leaderboardContent" class="card">Loading...</div>
+
+    <script>
+      function medal(rank) {
+        if (rank === 1) return "🥇";
+        if (rank === 2) return "🥈";
+        if (rank === 3) return "🥉";
+        return "#" + rank;
+      }
+
+      async function loadLeaderboard() {
+        const res = await fetch("/api/leaderboard", {
+          credentials: "include",
+          cache: "no-store"
+        });
+
+        const data = await res.json();
+
+        if (!data.ok) {
+          document.getElementById("leaderboardContent").innerHTML = "<p class='muted'>Could not load leaderboard.</p>";
+          return;
+        }
+
+        const players = data.players || [];
+
+        document.getElementById("leaderboardContent").innerHTML = \`
+          <h2>Top Players</h2>
+          \${players.length === 0 ? "<p class='muted'>No players yet.</p>" : players.map(player => \`
+            <div class="leader-row">
+              <div class="leader-rank">\${medal(player.rank)}</div>
+
+              <div>
+                <div class="leader-name">\${player.email}</div>
+                <div class="leader-sub">Player ID: \${player.id}</div>
+              </div>
+
+              <div class="leader-stat">
+                <div class="leader-stat-label">Level</div>
+                <div class="leader-stat-value">\${player.level}</div>
+              </div>
+
+              <div class="leader-stat">
+                <div class="leader-stat-label">XP</div>
+                <div class="leader-stat-value">\${player.xp}</div>
+              </div>
+
+              <div class="leader-stat">
+                <div class="leader-stat-label">Balance</div>
+                <div class="leader-stat-value">\${player.balance}</div>
+              </div>
+            </div>
+          \`).join("")}
+        \`;
+      }
+
+      loadLeaderboard();
     </script>
   `);
 
