@@ -12,6 +12,12 @@ const ADMIN_EMAIL = "admin@test.com";
 const DAILY_REWARD_BALANCE = 50;
 const DAILY_REWARD_XP = 15;
 
+const DAILY_QUEST_REWARDS = {
+  quest_bet_1: { balance: 20, xp: 10, title: "Place 1 Bet" },
+  quest_bet_3: { balance: 40, xp: 20, title: "Place 3 Bets" },
+  quest_daily_reward: { balance: 25, xp: 10, title: "Claim Daily Reward" }
+};
+
 const demoMatches = [
   {
     id: 1,
@@ -227,6 +233,159 @@ async function getShopState(userId) {
   return { user, items };
 }
 
+async function getUserAchievements(userId) {
+  const userResult = await pool.query(
+    "SELECT * FROM users WHERE id = $1 LIMIT 1",
+    [userId]
+  );
+
+  if (!userResult.rows.length) return [];
+
+  const user = userResult.rows[0];
+
+  const betsResult = await pool.query(
+    "SELECT * FROM bets WHERE user_id = $1 ORDER BY id DESC",
+    [userId]
+  );
+
+  const purchasesResult = await pool.query(
+    "SELECT * FROM shop_purchases WHERE user_id = $1 ORDER BY id DESC",
+    [userId]
+  );
+
+  const bets = betsResult.rows;
+  const wins = bets.filter(b => normalizeStatus(b.status) === "win").length;
+  const totalBets = bets.length;
+  const levelInfo = getLevelInfo(user.xp);
+  const purchases = purchasesResult.rows;
+
+  return [
+    {
+      key: "first_bet",
+      title: "First Bet",
+      description: "Place your first demo bet.",
+      icon: "🎯",
+      unlocked: totalBets >= 1
+    },
+    {
+      key: "three_bets",
+      title: "3 Bets",
+      description: "Place at least 3 bets.",
+      icon: "🎲",
+      unlocked: totalBets >= 3
+    },
+    {
+      key: "first_win",
+      title: "First Win",
+      description: "Win your first settled bet.",
+      icon: "🏅",
+      unlocked: wins >= 1
+    },
+    {
+      key: "three_wins",
+      title: "3 Wins",
+      description: "Reach 3 winning bets.",
+      icon: "🏆",
+      unlocked: wins >= 3
+    },
+    {
+      key: "level_five",
+      title: "Level 5",
+      description: "Reach player level 5.",
+      icon: "⚡",
+      unlocked: levelInfo.level >= 5
+    },
+    {
+      key: "shop_buyer",
+      title: "Shop Buyer",
+      description: "Buy your first shop item.",
+      icon: "🛍️",
+      unlocked: purchases.length >= 1
+    },
+    {
+      key: "rich_1200",
+      title: "Balance 1200+",
+      description: "Reach balance 1200 or more.",
+      icon: "💰",
+      unlocked: Number(user.balance) >= 1200
+    }
+  ];
+}
+
+async function getDailyQuests(userId) {
+  const todayKey = getDateKey(new Date());
+
+  const betsResult = await pool.query(
+    "SELECT * FROM bets WHERE user_id = $1 ORDER BY id DESC",
+    [userId]
+  );
+
+  const historyResult = await pool.query(
+    "SELECT * FROM balance_history WHERE user_id = $1 ORDER BY id DESC",
+    [userId]
+  );
+
+  const betsToday = betsResult.rows.filter(row => {
+    if (!row.created_at) return false;
+    return getDateKey(row.created_at) === todayKey;
+  }).length;
+
+  const claimedDailyRewardToday = historyResult.rows.some(row => {
+    if (!row.created_at) return false;
+    return row.type === "daily_reward" && getDateKey(row.created_at) === todayKey;
+  });
+
+  const questClaimsToday = historyResult.rows.filter(row => {
+    if (!row.created_at) return false;
+    return row.type === "daily_quest_reward" && getDateKey(row.created_at) === todayKey;
+  });
+
+  function isQuestRewardClaimed(questKey) {
+    return questClaimsToday.some(row =>
+      String(row.description || "").includes(`quest_key=${questKey}`)
+    );
+  }
+
+  return [
+    {
+      key: "quest_bet_1",
+      title: "Place 1 Bet",
+      description: "Place at least 1 bet today.",
+      icon: "🎯",
+      done: betsToday >= 1,
+      progressText: `${Math.min(betsToday, 1)}/1`,
+      rewardBalance: DAILY_QUEST_REWARDS.quest_bet_1.balance,
+      rewardXp: DAILY_QUEST_REWARDS.quest_bet_1.xp,
+      rewardClaimed: isQuestRewardClaimed("quest_bet_1"),
+      canClaimReward: betsToday >= 1 && !isQuestRewardClaimed("quest_bet_1")
+    },
+    {
+      key: "quest_bet_3",
+      title: "Place 3 Bets",
+      description: "Place at least 3 bets today.",
+      icon: "🔥",
+      done: betsToday >= 3,
+      progressText: `${Math.min(betsToday, 3)}/3`,
+      rewardBalance: DAILY_QUEST_REWARDS.quest_bet_3.balance,
+      rewardXp: DAILY_QUEST_REWARDS.quest_bet_3.xp,
+      rewardClaimed: isQuestRewardClaimed("quest_bet_3"),
+      canClaimReward: betsToday >= 3 && !isQuestRewardClaimed("quest_bet_3")
+    },
+    {
+      key: "quest_daily_reward",
+      title: "Claim Daily Reward",
+      description: "Claim today's daily reward.",
+      icon: "🎁",
+      done: claimedDailyRewardToday,
+      progressText: claimedDailyRewardToday ? "1/1" : "0/1",
+      rewardBalance: DAILY_QUEST_REWARDS.quest_daily_reward.balance,
+      rewardXp: DAILY_QUEST_REWARDS.quest_daily_reward.xp,
+      rewardClaimed: isQuestRewardClaimed("quest_daily_reward"),
+      canClaimReward: claimedDailyRewardToday && !isQuestRewardClaimed("quest_daily_reward")
+    }
+  ];
+}
+
 function isAdmin(user) {
   return !!user && String(user.email || "").trim().toLowerCase() === ADMIN_EMAIL.toLowerCase();
 }
@@ -315,7 +474,7 @@ function layout(title, user, content) {
         grid-template-columns: 1.45fr 1fr;
         gap: 16px;
       }
-      .match, .bet-row, .history-row, .user-row, .leader-row, .shop-row {
+      .match, .bet-row, .history-row, .user-row, .leader-row, .shop-row, .achievement-row, .quest-row {
         background: rgba(15, 23, 42, 0.72);
         border: 1px solid #273449;
         border-radius: 16px;
@@ -409,29 +568,6 @@ function layout(title, user, content) {
         color: #fca5a5;
         border: 1px solid rgba(239,68,68,.35);
       }
-      input, button {
-        width: 100%;
-        padding: 13px 14px;
-        border-radius: 12px;
-        margin-top: 8px;
-        font-size: 16px;
-      }
-      input {
-        border: 1px solid #334155;
-        background: #0f172a;
-        color: white;
-      }
-      button {
-        border: none;
-        color: white;
-        font-weight: bold;
-        cursor: pointer;
-        background: linear-gradient(180deg, #3b82f6, #2563eb);
-      }
-      button:hover { filter: brightness(1.05); }
-      .btn-green { background: linear-gradient(180deg, #22c55e, #16a34a); }
-      .btn-red { background: linear-gradient(180deg, #ef4444, #dc2626); }
-      .btn-gray { background: linear-gradient(180deg, #475569, #334155); }
       .message {
         display: none;
         margin-top: 12px;
@@ -469,10 +605,33 @@ function layout(title, user, content) {
         padding: 18px;
         margin-bottom: 16px;
       }
-      .shop-icon {
+      .shop-icon, .achievement-icon, .quest-icon {
         font-size: 40px;
         margin-bottom: 10px;
       }
+      input, button {
+        width: 100%;
+        padding: 13px 14px;
+        border-radius: 12px;
+        margin-top: 8px;
+        font-size: 16px;
+      }
+      input {
+        border: 1px solid #334155;
+        background: #0f172a;
+        color: white;
+      }
+      button {
+        border: none;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+        background: linear-gradient(180deg, #3b82f6, #2563eb);
+      }
+      button:hover { filter: brightness(1.05); }
+      .btn-green { background: linear-gradient(180deg, #22c55e, #16a34a); }
+      .btn-red { background: linear-gradient(180deg, #ef4444, #dc2626); }
+      .btn-gray { background: linear-gradient(180deg, #475569, #334155); }
 
       @media (max-width: 900px) {
         .two-cols { grid-template-columns: 1fr; }
@@ -500,7 +659,9 @@ function layout(title, user, content) {
         <a href="/matches">Matches</a>
         <a href="/dashboard">Dashboard</a>
         <a href="/leaderboard">Leaderboard</a>
+        <a href="/achievements">Achievements</a>
         <a href="/daily-reward">Daily Reward</a>
+        <a href="/daily-quests">Daily Quests</a>
         <a href="/shop">Shop</a>
         <a href="/balance-history">Balance History</a>
         ${user && isAdmin(user) ? `<a href="/admin">Admin</a>` : ""}
@@ -625,7 +786,7 @@ app.get("/", async (req, res) => {
   res.send(layout("Home", user, `
     <div class="hero">
       <h1>Night Arena</h1>
-      <p>Dark game-style betting simulator with virtual balance, XP, level system, daily rewards, leaderboard and shop. No real money.</p>
+      <p>Dark game-style betting simulator with virtual balance, XP, achievements, daily quests, daily rewards, shop and leaderboard. No real money.</p>
     </div>
 
     <div class="grid">
@@ -634,12 +795,12 @@ app.get("/", async (req, res) => {
         <p class="muted">Pick outcomes, place demo bets and build your profile.</p>
       </div>
       <div class="card">
-        <h3>⚡ Level system</h3>
-        <p class="muted">Gain XP for betting and wins. Grow your level over time.</p>
+        <h3>🏆 Achievements</h3>
+        <p class="muted">Unlock milestones for wins, levels and activity.</p>
       </div>
       <div class="card">
-        <h3>🛍️ Player shop</h3>
-        <p class="muted">Buy badges and profile themes using virtual balance.</p>
+        <h3>🎁 Daily systems</h3>
+        <p class="muted">Claim daily reward and complete daily quests for extra bonuses.</p>
       </div>
     </div>
   `));
@@ -1137,9 +1298,10 @@ app.get("/dashboard", async (req, res) => {
           const totalStaked = bets.reduce((sum, b) => sum + Number(b.stake || 0), 0);
           const totalWon = history.filter(h => h.type === "bet_win").reduce((sum, h) => sum + Number(h.amount || 0), 0);
           const totalReward = history.filter(h => h.type === "daily_reward").reduce((sum, h) => sum + Number(h.amount || 0), 0);
+          const totalQuestReward = history.filter(h => h.type === "daily_quest_reward").reduce((sum, h) => sum + Number(h.amount || 0), 0);
           const totalShopSpend = history.filter(h => h.type === "shop_purchase").reduce((sum, h) => sum + Math.abs(Number(h.amount || 0)), 0);
 
-          const profit = totalWon + totalReward - totalStaked - totalShopSpend;
+          const profit = totalWon + totalReward + totalQuestReward - totalStaked - totalShopSpend;
           const theme = getThemeStyles(meData.user.active_theme);
 
           document.getElementById("dashboardContent").innerHTML = \`
@@ -1189,7 +1351,7 @@ app.get("/dashboard", async (req, res) => {
               <div class="stat"><div class="stat-label">Pending</div><div class="stat-value">\${pending}</div></div>
               <div class="stat"><div class="stat-label">Wins</div><div class="stat-value">\${wins}</div></div>
               <div class="stat"><div class="stat-label">Loses</div><div class="stat-value">\${loses}</div></div>
-              <div class="stat"><div class="stat-label">Shop spent</div><div class="stat-value">\${totalShopSpend}</div></div>
+              <div class="stat"><div class="stat-label">Quest rewards</div><div class="stat-value">\${totalQuestReward}</div></div>
               <div class="stat"><div class="stat-label">Profit</div><div class="stat-value">\${profit}</div></div>
             </div>
 
@@ -1231,6 +1393,74 @@ app.get("/api/my-bets", async (req, res) => {
     );
 
     res.json({ ok: true, bets: result.rows });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+app.get("/achievements", async (req, res) => {
+  const user = await getUser(req);
+  if (!user) return res.send(layout("Achievements", user, loginRequiredPage("Achievements")));
+
+  res.send(layout("Achievements", user, `
+    <div class="card">
+      <h1>Achievements</h1>
+      <p class="muted">Unlock milestones and build your player identity.</p>
+      <button onclick="loadAchievements()">Refresh Achievements</button>
+    </div>
+
+    <div id="achievementsBox" class="card">Loading...</div>
+
+    <script>
+      async function loadAchievements() {
+        const res = await fetch("/api/achievements", {
+          credentials: "include",
+          cache: "no-store"
+        });
+
+        const data = await res.json();
+
+        if (!data.ok) {
+          document.getElementById("achievementsBox").innerHTML = "<p class='muted'>Could not load achievements.</p>";
+          return;
+        }
+
+        const items = data.achievements || [];
+        const unlocked = items.filter(x => x.unlocked).length;
+
+        document.getElementById("achievementsBox").innerHTML = \`
+          <h2>Unlocked: \${unlocked} / \${items.length}</h2>
+          \${items.map(item => \`
+            <div class="achievement-row" style="opacity:\${item.unlocked ? 1 : 0.55}">
+              <div class="achievement-icon">\${item.icon}</div>
+              <div style="font-size:18px; font-weight:800; margin-bottom:6px;">\${item.title}</div>
+              <div class="muted">\${item.description}</div>
+              <div style="margin-top:10px;">
+                \${item.unlocked
+                  ? '<span class="pill green">UNLOCKED</span>'
+                  : '<span class="pill">LOCKED</span>'}
+              </div>
+            </div>
+          \`).join("")}
+        \`;
+      }
+
+      loadAchievements();
+    </script>
+  `));
+});
+
+app.get("/api/achievements", async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.json({ ok: false, message: "Not logged in" });
+
+    const achievements = await getUserAchievements(user.id);
+
+    res.json({
+      ok: true,
+      achievements
+    });
   } catch (err) {
     res.json({ ok: false, message: err.message });
   }
@@ -1375,6 +1605,178 @@ app.post("/claim-daily-reward", async (req, res) => {
       message: "Daily reward claimed",
       rewardBalance: DAILY_REWARD_BALANCE,
       rewardXp: DAILY_REWARD_XP,
+      balance: updatedUser.balance,
+      xp: updatedUser.xp,
+      level: levelInfo.level
+    });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+app.get("/daily-quests", async (req, res) => {
+  const user = await getUser(req);
+  if (!user) return res.send(layout("Daily Quests", user, loginRequiredPage("Daily Quests")));
+
+  res.send(layout("Daily Quests", user, `
+    <div class="card">
+      <h1>Daily Quests</h1>
+      <p class="muted">Complete quests and claim extra daily bonuses.</p>
+      <button onclick="loadQuests()">Refresh Quests</button>
+      <div id="questMsg" class="message"></div>
+    </div>
+
+    <div id="questsBox" class="card">Loading...</div>
+
+    <script>
+      function showQuestMessage(text, type) {
+        const box = document.getElementById("questMsg");
+        box.className = "message " + type;
+        box.style.display = "block";
+        box.textContent = text;
+      }
+
+      async function loadQuests() {
+        const res = await fetch("/api/daily-quests", {
+          credentials: "include",
+          cache: "no-store"
+        });
+
+        const data = await res.json();
+
+        if (!data.ok) {
+          document.getElementById("questsBox").innerHTML = "<p class='muted'>Could not load daily quests.</p>";
+          return;
+        }
+
+        const quests = data.quests || [];
+
+        document.getElementById("questsBox").innerHTML = \`
+          <h2>Completed: \${data.completed} / \${data.total}</h2>
+          \${quests.map(item => \`
+            <div class="quest-row" style="opacity:\${item.done ? 1 : 0.7}">
+              <div class="quest-icon">\${item.icon}</div>
+              <div style="font-size:18px; font-weight:800; margin-bottom:6px;">\${item.title}</div>
+              <div class="muted">\${item.description}</div>
+              <div class="muted" style="margin-top:8px;">Progress: \${item.progressText}</div>
+              <div class="muted">Reward: +\${item.rewardBalance} balance / +\${item.rewardXp} XP</div>
+              <div style="margin-top:10px;">
+                \${item.rewardClaimed
+                  ? '<span class="pill green">REWARD CLAIMED</span>'
+                  : item.canClaimReward
+                    ? '<button class="btn-green" onclick="claimQuestReward(\\'' + item.key + '\\')">Claim reward</button>'
+                    : item.done
+                      ? '<span class="pill blue">READY</span>'
+                      : '<span class="pill">IN PROGRESS</span>'}
+              </div>
+            </div>
+          \`).join("")}
+        \`;
+      }
+
+      async function claimQuestReward(questKey) {
+        const res = await fetch("/claim-daily-quest-reward", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ questKey })
+        });
+
+        const data = await res.json();
+
+        if (!data.ok) {
+          showQuestMessage(data.message || "Could not claim quest reward", "error");
+          return;
+        }
+
+        showQuestMessage("Quest reward claimed: +" + data.rewardBalance + " balance and +" + data.rewardXp + " XP", "success");
+        loadQuests();
+      }
+
+      loadQuests();
+    </script>
+  `));
+});
+
+app.get("/api/daily-quests", async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.json({ ok: false, message: "Not logged in" });
+
+    const quests = await getDailyQuests(user.id);
+    const completed = quests.filter(q => q.done).length;
+
+    res.json({
+      ok: true,
+      quests,
+      completed,
+      total: quests.length
+    });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+app.post("/claim-daily-quest-reward", async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.json({ ok: false, message: "Not logged in" });
+
+    const { questKey } = req.body;
+    if (!questKey || !DAILY_QUEST_REWARDS[questKey]) {
+      return res.json({ ok: false, message: "Invalid quest key" });
+    }
+
+    const quests = await getDailyQuests(user.id);
+    const quest = quests.find(q => q.key === questKey);
+
+    if (!quest) {
+      return res.json({ ok: false, message: "Quest not found" });
+    }
+
+    if (!quest.done) {
+      return res.json({ ok: false, message: "Quest is not completed yet" });
+    }
+
+    if (quest.rewardClaimed) {
+      return res.json({ ok: false, message: "Quest reward already claimed today" });
+    }
+
+    const reward = DAILY_QUEST_REWARDS[questKey];
+
+    await pool.query(
+      "UPDATE users SET balance = balance + $1, xp = COALESCE(xp, 0) + $2 WHERE id = $3",
+      [reward.balance, reward.xp, user.id]
+    );
+
+    const updatedUserResult = await pool.query(
+      "SELECT * FROM users WHERE id = $1 LIMIT 1",
+      [user.id]
+    );
+
+    const updatedUser = updatedUserResult.rows[0];
+    const newBalance = Number(updatedUser.balance);
+    const levelInfo = getLevelInfo(updatedUser.xp);
+
+    await pool.query(
+      `INSERT INTO balance_history (user_id, amount, type, description, bet_id, balance_after)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        user.id,
+        reward.balance,
+        "daily_quest_reward",
+        `Daily quest reward claimed: ${reward.title} | quest_key=${questKey} | +${reward.balance} balance +${reward.xp} XP`,
+        null,
+        newBalance
+      ]
+    );
+
+    res.json({
+      ok: true,
+      message: "Quest reward claimed",
+      questKey,
+      rewardBalance: reward.balance,
+      rewardXp: reward.xp,
       balance: updatedUser.balance,
       xp: updatedUser.xp,
       level: levelInfo.level
