@@ -125,6 +125,25 @@ function getDailyGuestData() {
   };
 }
 
+function navHtml(active) {
+  const item = (href, label, key) => {
+    const activeClass = active === key ? "nav-link active" : "nav-link";
+    return `<a class="${activeClass}" href="${href}">${label}</a>`;
+  };
+
+  return `
+    <div class="nav-wrap">
+      <div class="nav-brand">🌙 Night Arena</div>
+      <div class="nav-links">
+        ${item("/", "Home", "home")}
+        ${item("/daily-guests", "Daily Guests", "daily-guests")}
+        ${item("/history", "History", "history")}
+        ${item("/profile", "Me", "me")}
+      </div>
+    </div>
+  `;
+}
+
 function baseStyles() {
   return `
     * {
@@ -142,6 +161,47 @@ function baseStyles() {
     .wrap {
       max-width: 980px;
       margin: 0 auto;
+    }
+
+    .nav-wrap {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      background: #18233f;
+      border: 1px solid #26324d;
+      border-radius: 20px;
+      padding: 18px 20px;
+      margin-bottom: 16px;
+    }
+
+    .nav-brand {
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .nav-link {
+      display: inline-block;
+      text-decoration: none;
+      padding: 11px 15px;
+      border-radius: 12px;
+      font-weight: bold;
+      color: #dbeafe;
+      background: rgba(59, 130, 246, 0.12);
+      border: 1px solid rgba(59, 130, 246, 0.22);
+    }
+
+    .nav-link.active {
+      background: linear-gradient(180deg, #3b82f6, #2563eb);
+      border-color: transparent;
+      color: white;
     }
 
     .card {
@@ -366,6 +426,38 @@ function baseStyles() {
       color: #cbd5e1;
       line-height: 1.5;
     }
+
+    .history-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .history-item {
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid #273449;
+      border-radius: 16px;
+      padding: 16px;
+    }
+
+    .history-type {
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    @media (max-width: 700px) {
+      .title {
+        font-size: 32px;
+      }
+
+      .hero h1 {
+        font-size: 32px;
+      }
+
+      .nav-brand {
+        font-size: 20px;
+      }
+    }
   `;
 }
 
@@ -380,17 +472,17 @@ app.get("/", (req, res) => {
     </head>
     <body>
       <div class="wrap">
+        ${navHtml("home")}
+
         <div class="hero">
           <h1>Night Arena</h1>
-          <p>
-            Demo betting app with daily guest quests, rewards and live progress.
-          </p>
+          <p>Demo betting app with daily guest quests, claim rewards and clean navigation.</p>
         </div>
 
         <div class="card">
           <div class="title" style="font-size:28px;">Welcome</div>
           <div class="subtitle">
-            Main site now opens as a real page instead of plain HOME OK.
+            Main page now has a real navigation menu and transitions between all core sections.
           </div>
 
           <div class="stats">
@@ -414,8 +506,20 @@ app.get("/", (req, res) => {
           <div class="link-grid">
             <div class="feature">
               <h3>🎯 Daily Guests</h3>
-              <p>Open the guest quest page with live status and reward claiming.</p>
+              <p>Open live quest page with progress and reward claiming.</p>
               <a class="button" href="/daily-guests">Open Daily Guests</a>
+            </div>
+
+            <div class="feature">
+              <h3>📜 History</h3>
+              <p>See balance history and claimed guest rewards.</p>
+              <a class="button gray" href="/history">Open History</a>
+            </div>
+
+            <div class="feature">
+              <h3>👤 Me</h3>
+              <p>See user profile card and current demo account state.</p>
+              <a class="button gray" href="/profile">Open Me</a>
             </div>
 
             <div class="feature">
@@ -423,18 +527,108 @@ app.get("/", (req, res) => {
               <p>Simple route to check that the server is alive.</p>
               <a class="button gray" href="/health">Open Health</a>
             </div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `);
+});
 
-            <div class="feature">
-              <h3>👤 Me</h3>
-              <p>See demo user data in JSON format.</p>
-              <a class="button gray" href="/me">Open Me</a>
-            </div>
+app.get("/profile", (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Me</title>
+      <style>${baseStyles()}</style>
+    </head>
+    <body>
+      <div class="wrap">
+        ${navHtml("me")}
 
-            <div class="feature">
-              <h3>📜 Balance History</h3>
-              <p>See reward and bet movement data.</p>
-              <a class="button gray" href="/balance-history">Open History</a>
+        <div class="card">
+          <div class="title">Me</div>
+          <div class="subtitle">Current demo user profile.</div>
+
+          <div class="stats">
+            <div class="stat">
+              <div class="stat-label">User ID</div>
+              <div class="stat-value">${user.id}</div>
             </div>
+            <div class="stat">
+              <div class="stat-label">Email</div>
+              <div class="stat-value" style="font-size:20px;">${user.email}</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Balance</div>
+              <div class="stat-value">${user.balance}</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Total bets</div>
+              <div class="stat-value">${bets.length}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="title" style="font-size:28px;">Quick actions</div>
+          <div class="link-grid">
+            <div class="feature">
+              <h3>🎯 Daily Guests</h3>
+              <p>Go to quests and claim rewards.</p>
+              <a class="button" href="/daily-guests">Go to Daily Guests</a>
+            </div>
+            <div class="feature">
+              <h3>📜 History</h3>
+              <p>Open balance movement history.</p>
+              <a class="button gray" href="/history">Go to History</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
+app.get("/history", (req, res) => {
+  const historyHtml = balanceHistory
+    .map((item) => {
+      return `
+        <div class="history-item">
+          <div class="history-type">${item.type}</div>
+          <div><strong>Description:</strong> ${item.description}</div>
+          <div><strong>Amount:</strong> ${item.amount}</div>
+          <div><strong>Balance after:</strong> ${item.balance_after}</div>
+          <div><strong>Created:</strong> ${item.created_at}</div>
+        </div>
+      `;
+    })
+    .join("");
+
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>History</title>
+      <style>${baseStyles()}</style>
+    </head>
+    <body>
+      <div class="wrap">
+        ${navHtml("history")}
+
+        <div class="card">
+          <div class="title">History</div>
+          <div class="subtitle">All current balance movements and reward claims.</div>
+        </div>
+
+        <div class="card">
+          <div class="title" style="font-size:28px;">Balance history</div>
+          <div class="history-list">
+            ${historyHtml || '<div class="muted">No history yet.</div>'}
           </div>
         </div>
       </div>
@@ -531,6 +725,8 @@ app.get("/daily-guests", (req, res) => {
     </head>
     <body>
       <div class="wrap">
+        ${navHtml("daily-guests")}
+
         <div class="card">
           <div class="title">Daily Guests</div>
           <div class="subtitle">Live guest quests based on current bet data.</div>
