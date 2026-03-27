@@ -1,16 +1,15 @@
+require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
+const pool = require("./db");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-const user = {
-  id: 1,
-  email: "demo@test.com",
-  balance: 1000
-};
+const DEMO_USER_EMAIL = "demo@test.com";
 
 const bets = [
   {
@@ -33,41 +32,57 @@ const bets = [
   }
 ];
 
-const balanceHistory = [
-  {
-    id: 1,
-    type: "bet_win",
-    description: "Win payout for Real Madrid vs Barcelona",
-    amount: 21,
-    balance_after: 1021,
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 2,
-    type: "bet_stake",
-    description: "Stake for Man City vs Liverpool",
-    amount: -10,
-    balance_after: 1011,
-    created_at: new Date().toISOString()
-  }
-];
-
-const claimedGuestRewards = new Set();
-
 function normalizeStatus(status) {
   return String(status || "").trim().toLowerCase();
 }
 
-function questRewardKey(questId) {
-  return `user:${user.id}:quest:${questId}`;
+async function ensureDemoUser() {
+  const existing = await pool.query(
+    "SELECT * FROM users WHERE email = $1 LIMIT 1",
+    [DEMO_USER_EMAIL]
+  );
+
+  if (existing.rows.length) {
+    return existing.rows[0];
+  }
+
+  const created = await pool.query(
+    `INSERT INTO users (email, balance)
+     VALUES ($1, $2)
+     RETURNING *`,
+    [DEMO_USER_EMAIL, 1000]
+  );
+
+  return created.rows[0];
 }
 
-function isQuestClaimed(questId) {
-  return claimedGuestRewards.has(questRewardKey(questId));
+async function getDemoUser() {
+  await ensureDemoUser();
+
+  const result = await pool.query(
+    "SELECT * FROM users WHERE email = $1 LIMIT 1",
+    [DEMO_USER_EMAIL]
+  );
+
+  return result.rows[0];
 }
 
-function claimQuest(questId) {
-  claimedGuestRewards.add(questRewardKey(questId));
+async function getClaimedRewards(userId) {
+  const result = await pool.query(
+    "SELECT quest_id FROM guest_reward_claims WHERE user_id = $1 ORDER BY id DESC",
+    [userId]
+  );
+
+  return new Set(result.rows.map((row) => Number(row.quest_id)));
+}
+
+async function getBalanceHistory(userId) {
+  const result = await pool.query(
+    "SELECT * FROM balance_history WHERE user_id = $1 ORDER BY id DESC",
+    [userId]
+  );
+
+  return result.rows;
 }
 
 function getQuestDefinitions() {
@@ -110,22 +125,28 @@ function getQuestDefinitions() {
   };
 }
 
-function getDailyGuestData() {
+async function getDailyGuestData() {
+  const user = await getDemoUser();
+  const claimedRewards = await getClaimedRewards(user.id);
   const data = getQuestDefinitions();
 
   return {
     ok: true,
-    user,
+    user: {
+      id: user.id,
+      email: user.email,
+      balance: Number(user.balance)
+    },
     stats: data.stats,
     quests: data.quests.map((quest) => ({
       ...quest,
-      claimed: isQuestClaimed(quest.id),
-      canClaim: quest.done && !isQuestClaimed(quest.id)
+      claimed: claimedRewards.has(Number(quest.id)),
+      canClaim: quest.done && !claimedRewards.has(Number(quest.id))
     }))
   };
 }
 
-function navHtml(active) {
+function navHtml(active, balance) {
   const item = (href, label, key) => {
     const activeClass = active === key ? "nav-link active" : "nav-link";
     return `<a class="${activeClass}" href="${href}">${label}</a>`;
@@ -146,7 +167,7 @@ function navHtml(active) {
 
       <div class="nav-right">
         <div class="balance-chip">
-          💰 Balance: <span id="navBalance">${user.balance}</span>
+          💰 Balance: <span id="navBalance">${balance}</span>
         </div>
       </div>
     </div>
@@ -155,9 +176,7 @@ function navHtml(active) {
 
 function baseStyles() {
   return `
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -340,48 +359,12 @@ function baseStyles() {
       transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
     }
 
-    .quest:hover {
-      transform: translateY(-2px);
-      border-color: #385075;
-    }
-
     .quest.done-card {
       border-color: rgba(34, 197, 94, 0.45);
-      box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.08), 0 8px 30px rgba(34, 197, 94, 0.08);
     }
 
     .quest.claimed-card {
       border-color: rgba(139, 92, 246, 0.45);
-      box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.08), 0 8px 30px rgba(139, 92, 246, 0.08);
-    }
-
-    .quest.animate-complete {
-      animation: questCompletePop 0.6s ease;
-    }
-
-    .quest.animate-claim {
-      animation: questClaimFlash 0.9s ease;
-    }
-
-    .quest::after {
-      content: "";
-      position: absolute;
-      top: -20%;
-      left: -120%;
-      width: 80px;
-      height: 140%;
-      transform: rotate(18deg);
-      background: linear-gradient(
-        90deg,
-        rgba(255,255,255,0) 0%,
-        rgba(255,255,255,0.10) 50%,
-        rgba(255,255,255,0) 100%
-      );
-      pointer-events: none;
-    }
-
-    .quest.animate-claim::after {
-      animation: shineSweep 0.9s ease;
     }
 
     .quest-top {
@@ -451,11 +434,7 @@ function baseStyles() {
       color: #c4b5fd;
     }
 
-    .muted {
-      color: #94a3b8;
-    }
-
-    .loading {
+    .muted, .loading {
       color: #94a3b8;
     }
 
@@ -481,45 +460,31 @@ function baseStyles() {
       border: 1px solid rgba(239, 68, 68, 0.35);
     }
 
-    .link-grid {
+    .link-grid, .history-list {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 14px;
     }
 
-    .feature {
+    .link-grid {
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .feature, .history-item {
       background: rgba(15, 23, 42, 0.72);
       border: 1px solid #273449;
       border-radius: 18px;
       padding: 18px;
     }
 
-    .feature h3 {
+    .feature h3, .history-type {
       margin-top: 0;
       font-size: 24px;
+      font-weight: 800;
     }
 
     .feature p {
       color: #cbd5e1;
       line-height: 1.5;
-    }
-
-    .history-list {
-      display: grid;
-      gap: 12px;
-    }
-
-    .history-item {
-      background: rgba(15, 23, 42, 0.72);
-      border: 1px solid #273449;
-      border-radius: 16px;
-      padding: 16px;
-    }
-
-    .history-type {
-      font-size: 18px;
-      font-weight: 800;
-      margin-bottom: 8px;
     }
 
     .toast {
@@ -554,45 +519,6 @@ function baseStyles() {
       color: white;
     }
 
-    @keyframes questCompletePop {
-      0% {
-        transform: scale(1);
-        box-shadow: 0 0 0 rgba(34, 197, 94, 0);
-      }
-      35% {
-        transform: scale(1.02);
-        box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.10);
-      }
-      100% {
-        transform: scale(1);
-        box-shadow: 0 0 0 rgba(34, 197, 94, 0);
-      }
-    }
-
-    @keyframes questClaimFlash {
-      0% {
-        transform: scale(1);
-        box-shadow: 0 0 0 rgba(139, 92, 246, 0);
-      }
-      30% {
-        transform: scale(1.02);
-        box-shadow: 0 0 0 8px rgba(139, 92, 246, 0.14);
-      }
-      100% {
-        transform: scale(1);
-        box-shadow: 0 0 0 rgba(139, 92, 246, 0);
-      }
-    }
-
-    @keyframes shineSweep {
-      0% {
-        left: -120%;
-      }
-      100% {
-        left: 135%;
-      }
-    }
-
     @media (max-width: 900px) {
       .nav-wrap {
         grid-template-columns: 1fr;
@@ -604,20 +530,6 @@ function baseStyles() {
 
       .nav-right {
         justify-content: flex-start;
-      }
-    }
-
-    @media (max-width: 700px) {
-      .title {
-        font-size: 32px;
-      }
-
-      .hero h1 {
-        font-size: 32px;
-      }
-
-      .nav-brand {
-        font-size: 20px;
       }
     }
   `;
@@ -653,7 +565,63 @@ function toastScript() {
   `;
 }
 
-app.get("/", (req, res) => {
+app.get("/init-db", async (req, res) => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        balance NUMERIC NOT NULL DEFAULT 1000,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS guest_reward_claims (
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL,
+        quest_id INT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id, quest_id)
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS balance_history (
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL,
+        type TEXT NOT NULL,
+        description TEXT,
+        amount NUMERIC NOT NULL,
+        balance_after NUMERIC NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    const demoUser = await ensureDemoUser();
+
+    const historyCheck = await pool.query(
+      "SELECT id FROM balance_history WHERE user_id = $1 LIMIT 1",
+      [demoUser.id]
+    );
+
+    if (!historyCheck.rows.length) {
+      await pool.query(
+        `INSERT INTO balance_history (user_id, type, description, amount, balance_after)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [demoUser.id, "seed", "Initial demo balance", 1000, 1000]
+      );
+    }
+
+    res.json({ ok: true, message: "Database initialized" });
+  } catch (err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+app.get("/", async (req, res) => {
+  const currentUser = await getDemoUser();
+
   res.send(`
     <!DOCTYPE html>
     <html>
@@ -664,27 +632,27 @@ app.get("/", (req, res) => {
     </head>
     <body>
       <div class="wrap">
-        ${navHtml("home")}
+        ${navHtml("home", Number(currentUser.balance))}
 
         <div class="hero">
           <h1>Night Arena</h1>
-          <p>Demo betting app with daily guest quests, claim rewards, animated completions and clean navigation.</p>
+          <p>Demo betting app with DB persistence for balance, reward claims and history.</p>
         </div>
 
         <div class="card">
           <div class="title" style="font-size:28px;">Welcome</div>
           <div class="subtitle">
-            Main page now has balance in the header, toast notifications and quest completion animations.
+            Теперь баланс и claimed rewards сохраняются в базе.
           </div>
 
           <div class="stats">
             <div class="stat">
               <div class="stat-label">Demo user</div>
-              <div class="stat-value" style="font-size:20px;">${user.email}</div>
+              <div class="stat-value" style="font-size:20px;">${currentUser.email}</div>
             </div>
             <div class="stat">
               <div class="stat-label">Balance</div>
-              <div class="stat-value">${user.balance}</div>
+              <div class="stat-value">${Number(currentUser.balance)}</div>
             </div>
             <div class="stat">
               <div class="stat-label">Bets</div>
@@ -698,26 +666,26 @@ app.get("/", (req, res) => {
           <div class="link-grid">
             <div class="feature">
               <h3>🎯 Daily Guests</h3>
-              <p>Open live quest page with progress, claim rewards and animations.</p>
+              <p>Открыть квесты и забрать награды.</p>
               <a class="button" href="/daily-guests">Open Daily Guests</a>
             </div>
 
             <div class="feature">
               <h3>📜 History</h3>
-              <p>See balance history and claimed guest rewards.</p>
+              <p>Посмотреть историю баланса из базы.</p>
               <a class="button gray" href="/history">Open History</a>
             </div>
 
             <div class="feature">
               <h3>👤 Me</h3>
-              <p>See user profile card and current demo account state.</p>
+              <p>Открыть профиль demo-пользователя.</p>
               <a class="button gray" href="/profile">Open Me</a>
             </div>
 
             <div class="feature">
-              <h3>💚 Health</h3>
-              <p>Simple route to check that the server is alive.</p>
-              <a class="button gray" href="/health">Open Health</a>
+              <h3>🛠 Init DB</h3>
+              <p>Инициализировать таблицы один раз.</p>
+              <a class="button gray" href="/init-db">Run Init DB</a>
             </div>
           </div>
         </div>
@@ -728,7 +696,9 @@ app.get("/", (req, res) => {
   `);
 });
 
-app.get("/profile", (req, res) => {
+app.get("/profile", async (req, res) => {
+  const currentUser = await getDemoUser();
+
   res.send(`
     <!DOCTYPE html>
     <html>
@@ -739,44 +709,28 @@ app.get("/profile", (req, res) => {
     </head>
     <body>
       <div class="wrap">
-        ${navHtml("me")}
+        ${navHtml("me", Number(currentUser.balance))}
 
         <div class="card">
           <div class="title">Me</div>
-          <div class="subtitle">Current demo user profile.</div>
+          <div class="subtitle">Current demo user profile from database.</div>
 
           <div class="stats">
             <div class="stat">
               <div class="stat-label">User ID</div>
-              <div class="stat-value">${user.id}</div>
+              <div class="stat-value">${currentUser.id}</div>
             </div>
             <div class="stat">
               <div class="stat-label">Email</div>
-              <div class="stat-value" style="font-size:20px;">${user.email}</div>
+              <div class="stat-value" style="font-size:20px;">${currentUser.email}</div>
             </div>
             <div class="stat">
               <div class="stat-label">Balance</div>
-              <div class="stat-value">${user.balance}</div>
+              <div class="stat-value">${Number(currentUser.balance)}</div>
             </div>
             <div class="stat">
               <div class="stat-label">Total bets</div>
               <div class="stat-value">${bets.length}</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="title" style="font-size:28px;">Quick actions</div>
-          <div class="link-grid">
-            <div class="feature">
-              <h3>🎯 Daily Guests</h3>
-              <p>Go to quests and claim rewards.</p>
-              <a class="button" href="/daily-guests">Go to Daily Guests</a>
-            </div>
-            <div class="feature">
-              <h3>📜 History</h3>
-              <p>Open balance movement history.</p>
-              <a class="button gray" href="/history">Go to History</a>
             </div>
           </div>
         </div>
@@ -787,15 +741,18 @@ app.get("/profile", (req, res) => {
   `);
 });
 
-app.get("/history", (req, res) => {
-  const historyHtml = balanceHistory
+app.get("/history", async (req, res) => {
+  const currentUser = await getDemoUser();
+  const history = await getBalanceHistory(currentUser.id);
+
+  const historyHtml = history
     .map((item) => {
       return `
         <div class="history-item">
           <div class="history-type">${item.type}</div>
-          <div><strong>Description:</strong> ${item.description}</div>
-          <div><strong>Amount:</strong> ${item.amount}</div>
-          <div><strong>Balance after:</strong> ${item.balance_after}</div>
+          <div><strong>Description:</strong> ${item.description || "-"}</div>
+          <div><strong>Amount:</strong> ${Number(item.amount)}</div>
+          <div><strong>Balance after:</strong> ${Number(item.balance_after)}</div>
           <div><strong>Created:</strong> ${item.created_at}</div>
         </div>
       `;
@@ -812,11 +769,11 @@ app.get("/history", (req, res) => {
     </head>
     <body>
       <div class="wrap">
-        ${navHtml("history")}
+        ${navHtml("history", Number(currentUser.balance))}
 
         <div class="card">
           <div class="title">History</div>
-          <div class="subtitle">All current balance movements and reward claims.</div>
+          <div class="subtitle">Balance history from database.</div>
         </div>
 
         <div class="card">
@@ -836,10 +793,16 @@ app.get("/health", (req, res) => {
   res.send("ok");
 });
 
-app.get("/me", (req, res) => {
+app.get("/me", async (req, res) => {
+  const currentUser = await getDemoUser();
+
   res.json({
     ok: true,
-    user
+    user: {
+      id: currentUser.id,
+      email: currentUser.email,
+      balance: Number(currentUser.balance)
+    }
   });
 });
 
@@ -850,66 +813,97 @@ app.get("/my-bets", (req, res) => {
   });
 });
 
-app.get("/balance-history", (req, res) => {
+app.get("/balance-history", async (req, res) => {
+  const currentUser = await getDemoUser();
+  const history = await getBalanceHistory(currentUser.id);
+
   res.json({
     ok: true,
-    history: balanceHistory
+    history
   });
 });
 
-app.get("/api/daily-guests", (req, res) => {
-  res.json(getDailyGuestData());
+app.get("/api/daily-guests", async (req, res) => {
+  const data = await getDailyGuestData();
+  res.json(data);
 });
 
-app.post("/api/daily-guests/claim", (req, res) => {
-  const questId = Number(req.body.questId || 0);
-  const data = getQuestDefinitions();
-  const quest = data.quests.find((item) => item.id === questId);
+app.post("/api/daily-guests/claim", async (req, res) => {
+  try {
+    const questId = Number(req.body.questId || 0);
+    const currentUser = await getDemoUser();
+    const data = getQuestDefinitions();
+    const quest = data.quests.find((item) => item.id === questId);
 
-  if (!quest) {
-    return res.status(404).json({
+    if (!quest) {
+      return res.status(404).json({
+        ok: false,
+        message: "Quest not found"
+      });
+    }
+
+    if (!quest.done) {
+      return res.status(400).json({
+        ok: false,
+        message: "Quest is not completed yet"
+      });
+    }
+
+    const existing = await pool.query(
+      "SELECT id FROM guest_reward_claims WHERE user_id = $1 AND quest_id = $2 LIMIT 1",
+      [currentUser.id, questId]
+    );
+
+    if (existing.rows.length) {
+      return res.status(400).json({
+        ok: false,
+        message: "Reward already claimed"
+      });
+    }
+
+    const newBalance = Number(currentUser.balance) + Number(quest.reward);
+
+    await pool.query(
+      "UPDATE users SET balance = $1 WHERE id = $2",
+      [newBalance, currentUser.id]
+    );
+
+    await pool.query(
+      `INSERT INTO guest_reward_claims (user_id, quest_id)
+       VALUES ($1, $2)`,
+      [currentUser.id, questId]
+    );
+
+    await pool.query(
+      `INSERT INTO balance_history (user_id, type, description, amount, balance_after)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        currentUser.id,
+        "daily_guest_reward",
+        `Claim reward for: ${quest.title}`,
+        Number(quest.reward),
+        newBalance
+      ]
+    );
+
+    return res.json({
+      ok: true,
+      message: "Reward claimed",
+      reward: quest.reward,
+      balance: newBalance,
+      questId
+    });
+  } catch (err) {
+    return res.status(500).json({
       ok: false,
-      message: "Quest not found"
+      message: err.message
     });
   }
-
-  if (!quest.done) {
-    return res.status(400).json({
-      ok: false,
-      message: "Quest is not completed yet"
-    });
-  }
-
-  if (isQuestClaimed(questId)) {
-    return res.status(400).json({
-      ok: false,
-      message: "Reward already claimed"
-    });
-  }
-
-  user.balance += Number(quest.reward);
-
-  balanceHistory.unshift({
-    id: balanceHistory.length + 1,
-    type: "daily_guest_reward",
-    description: `Claim reward for: ${quest.title}`,
-    amount: Number(quest.reward),
-    balance_after: user.balance,
-    created_at: new Date().toISOString()
-  });
-
-  claimQuest(questId);
-
-  return res.json({
-    ok: true,
-    message: "Reward claimed",
-    reward: quest.reward,
-    balance: user.balance,
-    questId
-  });
 });
 
-app.get("/daily-guests", (req, res) => {
+app.get("/daily-guests", async (req, res) => {
+  const currentUser = await getDemoUser();
+
   res.send(`
     <!DOCTYPE html>
     <html>
@@ -920,11 +914,11 @@ app.get("/daily-guests", (req, res) => {
     </head>
     <body>
       <div class="wrap">
-        ${navHtml("daily-guests")}
+        ${navHtml("daily-guests", Number(currentUser.balance))}
 
         <div class="card">
           <div class="title">Daily Guests</div>
-          <div class="subtitle">Live guest quests based on current bet data.</div>
+          <div class="subtitle">Live guest quests with DB persistence.</div>
           <button class="button" onclick="loadDailyGuests()">Refresh quests</button>
           <div id="messageBox" class="message"></div>
         </div>
@@ -941,53 +935,6 @@ app.get("/daily-guests", (req, res) => {
       ${toastScript()}
 
       <script>
-        let previousQuestMap = {};
-
-        function iconForQuest(title) {
-          const t = String(title || "").toLowerCase();
-          if (t.includes("place")) return "🎯";
-          if (t.includes("win")) return "🏆";
-          if (t.includes("stake")) return "💰";
-          return "⭐";
-        }
-
-        function showMessage(text, type) {
-          const box = document.getElementById("messageBox");
-          box.className = "message " + type;
-          box.style.display = "block";
-          box.textContent = text;
-        }
-
-        function animateQuestStateChanges(quests) {
-          quests.forEach(function(q) {
-            var prev = previousQuestMap[q.id] || {};
-            var el = document.querySelector('[data-quest-id="' + q.id + '"]');
-            if (!el) return;
-
-            if (!prev.done && q.done && !q.claimed) {
-              el.classList.add("animate-complete");
-              setTimeout(function() {
-                el.classList.remove("animate-complete");
-              }, 700);
-            }
-
-            if (!prev.claimed && q.claimed) {
-              el.classList.add("animate-claim");
-              setTimeout(function() {
-                el.classList.remove("animate-claim");
-              }, 1000);
-            }
-          });
-
-          previousQuestMap = {};
-          quests.forEach(function(q) {
-            previousQuestMap[q.id] = {
-              done: q.done,
-              claimed: q.claimed
-            };
-          });
-        }
-
         async function claimReward(questId) {
           try {
             const res = await fetch("/api/daily-guests/claim", {
@@ -1001,19 +948,24 @@ app.get("/daily-guests", (req, res) => {
             const data = await res.json();
 
             if (!data.ok) {
-              showMessage(data.message || "Could not claim reward", "error");
               showToast(data.message || "Could not claim reward", "error");
               return;
             }
 
             updateAllBalanceTexts(data.balance);
-            showMessage("Reward claimed: +" + data.reward + ". New balance: " + data.balance, "success");
             showToast("+" + data.reward + " claimed", "success");
             loadDailyGuests();
           } catch (error) {
-            showMessage("Server error while claiming reward", "error");
             showToast("Server error", "error");
           }
+        }
+
+        function iconForQuest(title) {
+          const t = String(title || "").toLowerCase();
+          if (t.includes("place")) return "🎯";
+          if (t.includes("win")) return "🏆";
+          if (t.includes("stake")) return "💰";
+          return "⭐";
         }
 
         async function loadDailyGuests() {
@@ -1055,7 +1007,7 @@ app.get("/daily-guests", (req, res) => {
               <div class="title" style="font-size:26px;">Today quests</div>
               <div class="quests">
                 \${data.quests.map((q) => \`
-                  <div class="quest \${q.claimed ? "claimed-card" : q.done ? "done-card" : ""}" data-quest-id="\${q.id}">
+                  <div class="quest \${q.claimed ? "claimed-card" : q.done ? "done-card" : ""}">
                     <div class="quest-top">
                       <div class="quest-icon">\${iconForQuest(q.title)}</div>
                       <div class="quest-title">\${q.title}</div>
@@ -1084,8 +1036,6 @@ app.get("/daily-guests", (req, res) => {
                 \`).join("")}
               </div>
             \`;
-
-            animateQuestStateChanges(data.quests);
           } catch (error) {
             document.getElementById("statsBox").innerHTML = "<div class='muted'>Server error.</div>";
             document.getElementById("questsBox").innerHTML = "<div class='muted'>Server error.</div>";
