@@ -125,8 +125,322 @@ function getDailyGuestData() {
   };
 }
 
+function baseStyles() {
+  return `
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #0b1020, #111827);
+      color: white;
+      padding: 20px;
+    }
+
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #18233f;
+      border: 1px solid #26324d;
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .title {
+      font-size: 40px;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      color: #94a3b8;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+
+    .button {
+      display: inline-block;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-weight: bold;
+      color: white;
+      background: linear-gradient(180deg, #3b82f6, #2563eb);
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .button:hover {
+      filter: brightness(1.05);
+    }
+
+    .button.claim {
+      background: linear-gradient(180deg, #22c55e, #16a34a);
+    }
+
+    .button.gray {
+      background: linear-gradient(180deg, #475569, #334155);
+    }
+
+    .button.disabled {
+      background: linear-gradient(180deg, #475569, #334155);
+      cursor: default;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #1d4ed8, #8b5cf6);
+      border-radius: 22px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+
+    .hero h1 {
+      margin: 0 0 10px;
+      font-size: 40px;
+    }
+
+    .hero p {
+      margin: 0;
+      color: rgba(255,255,255,0.92);
+      line-height: 1.6;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .stat {
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid #273449;
+      border-radius: 16px;
+      padding: 16px;
+    }
+
+    .stat-label {
+      color: #94a3b8;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 800;
+    }
+
+    .quests {
+      display: grid;
+      gap: 14px;
+    }
+
+    .quest {
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid #273449;
+      border-radius: 18px;
+      padding: 18px;
+    }
+
+    .quest-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .quest-icon {
+      font-size: 34px;
+    }
+
+    .quest-title {
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .quest-desc {
+      color: #cbd5e1;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .quest-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 9px 14px;
+      border-radius: 999px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .reward {
+      background: rgba(34, 197, 94, 0.16);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      color: #86efac;
+    }
+
+    .progress {
+      background: rgba(59, 130, 246, 0.16);
+      border: 1px solid rgba(59, 130, 246, 0.35);
+      color: #93c5fd;
+    }
+
+    .done {
+      background: rgba(34, 197, 94, 0.16);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      color: #86efac;
+    }
+
+    .todo {
+      background: rgba(245, 158, 11, 0.16);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: #fbbf24;
+    }
+
+    .claimed {
+      background: rgba(139, 92, 246, 0.16);
+      border: 1px solid rgba(139, 92, 246, 0.35);
+      color: #c4b5fd;
+    }
+
+    .muted {
+      color: #94a3b8;
+    }
+
+    .loading {
+      color: #94a3b8;
+    }
+
+    .message {
+      display: none;
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-weight: bold;
+    }
+
+    .message.success {
+      display: block;
+      background: rgba(34, 197, 94, 0.16);
+      color: #86efac;
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+
+    .message.error {
+      display: block;
+      background: rgba(239, 68, 68, 0.16);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.35);
+    }
+
+    .link-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+
+    .feature {
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid #273449;
+      border-radius: 18px;
+      padding: 18px;
+    }
+
+    .feature h3 {
+      margin-top: 0;
+      font-size: 24px;
+    }
+
+    .feature p {
+      color: #cbd5e1;
+      line-height: 1.5;
+    }
+  `;
+}
+
 app.get("/", (req, res) => {
-  res.send("HOME OK");
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Night Arena</title>
+      <style>${baseStyles()}</style>
+    </head>
+    <body>
+      <div class="wrap">
+        <div class="hero">
+          <h1>Night Arena</h1>
+          <p>
+            Demo betting app with daily guest quests, rewards and live progress.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="title" style="font-size:28px;">Welcome</div>
+          <div class="subtitle">
+            Main site now opens as a real page instead of plain HOME OK.
+          </div>
+
+          <div class="stats">
+            <div class="stat">
+              <div class="stat-label">Demo user</div>
+              <div class="stat-value" style="font-size:20px;">${user.email}</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Balance</div>
+              <div class="stat-value">${user.balance}</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Bets</div>
+              <div class="stat-value">${bets.length}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="title" style="font-size:28px;">Navigation</div>
+          <div class="link-grid">
+            <div class="feature">
+              <h3>🎯 Daily Guests</h3>
+              <p>Open the guest quest page with live status and reward claiming.</p>
+              <a class="button" href="/daily-guests">Open Daily Guests</a>
+            </div>
+
+            <div class="feature">
+              <h3>💚 Health</h3>
+              <p>Simple route to check that the server is alive.</p>
+              <a class="button gray" href="/health">Open Health</a>
+            </div>
+
+            <div class="feature">
+              <h3>👤 Me</h3>
+              <p>See demo user data in JSON format.</p>
+              <a class="button gray" href="/me">Open Me</a>
+            </div>
+
+            <div class="feature">
+              <h3>📜 Balance History</h3>
+              <p>See reward and bet movement data.</p>
+              <a class="button gray" href="/balance-history">Open History</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `);
 });
 
 app.get("/health", (req, res) => {
@@ -213,201 +527,7 @@ app.get("/daily-guests", (req, res) => {
     <head>
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <title>Daily Guests</title>
-      <style>
-        * {
-          box-sizing: border-box;
-        }
-
-        body {
-          margin: 0;
-          font-family: Arial, sans-serif;
-          background: linear-gradient(135deg, #0b1020, #111827);
-          color: white;
-          padding: 20px;
-        }
-
-        .wrap {
-          max-width: 980px;
-          margin: 0 auto;
-        }
-
-        .card {
-          background: #18233f;
-          border: 1px solid #26324d;
-          border-radius: 20px;
-          padding: 20px;
-          margin-bottom: 16px;
-        }
-
-        .title {
-          font-size: 40px;
-          font-weight: 800;
-          margin-bottom: 10px;
-        }
-
-        .subtitle {
-          color: #94a3b8;
-          line-height: 1.6;
-          margin-bottom: 16px;
-        }
-
-        .button {
-          display: inline-block;
-          padding: 12px 16px;
-          border-radius: 12px;
-          font-weight: bold;
-          color: white;
-          background: linear-gradient(180deg, #3b82f6, #2563eb);
-          border: none;
-          cursor: pointer;
-        }
-
-        .button:hover {
-          filter: brightness(1.05);
-        }
-
-        .button.claim {
-          background: linear-gradient(180deg, #22c55e, #16a34a);
-        }
-
-        .button.disabled {
-          background: linear-gradient(180deg, #475569, #334155);
-          cursor: default;
-        }
-
-        .stats {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-          gap: 12px;
-          margin-top: 10px;
-        }
-
-        .stat {
-          background: rgba(15, 23, 42, 0.72);
-          border: 1px solid #273449;
-          border-radius: 16px;
-          padding: 16px;
-        }
-
-        .stat-label {
-          color: #94a3b8;
-          margin-bottom: 8px;
-        }
-
-        .stat-value {
-          font-size: 28px;
-          font-weight: 800;
-        }
-
-        .quests {
-          display: grid;
-          gap: 14px;
-        }
-
-        .quest {
-          background: rgba(15, 23, 42, 0.72);
-          border: 1px solid #273449;
-          border-radius: 18px;
-          padding: 18px;
-        }
-
-        .quest-top {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 10px;
-        }
-
-        .quest-icon {
-          font-size: 34px;
-        }
-
-        .quest-title {
-          font-size: 22px;
-          font-weight: 800;
-        }
-
-        .quest-desc {
-          color: #cbd5e1;
-          margin-bottom: 12px;
-          line-height: 1.5;
-        }
-
-        .quest-row {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px;
-          align-items: center;
-        }
-
-        .pill {
-          display: inline-block;
-          padding: 9px 14px;
-          border-radius: 999px;
-          font-weight: bold;
-          font-size: 14px;
-        }
-
-        .reward {
-          background: rgba(34, 197, 94, 0.16);
-          border: 1px solid rgba(34, 197, 94, 0.35);
-          color: #86efac;
-        }
-
-        .progress {
-          background: rgba(59, 130, 246, 0.16);
-          border: 1px solid rgba(59, 130, 246, 0.35);
-          color: #93c5fd;
-        }
-
-        .done {
-          background: rgba(34, 197, 94, 0.16);
-          border: 1px solid rgba(34, 197, 94, 0.35);
-          color: #86efac;
-        }
-
-        .todo {
-          background: rgba(245, 158, 11, 0.16);
-          border: 1px solid rgba(245, 158, 11, 0.35);
-          color: #fbbf24;
-        }
-
-        .claimed {
-          background: rgba(139, 92, 246, 0.16);
-          border: 1px solid rgba(139, 92, 246, 0.35);
-          color: #c4b5fd;
-        }
-
-        .muted {
-          color: #94a3b8;
-        }
-
-        .loading {
-          color: #94a3b8;
-        }
-
-        .message {
-          display: none;
-          margin-top: 12px;
-          padding: 12px 14px;
-          border-radius: 12px;
-          font-weight: bold;
-        }
-
-        .message.success {
-          display: block;
-          background: rgba(34, 197, 94, 0.16);
-          color: #86efac;
-          border: 1px solid rgba(34, 197, 94, 0.35);
-        }
-
-        .message.error {
-          display: block;
-          background: rgba(239, 68, 68, 0.16);
-          color: #fca5a5;
-          border: 1px solid rgba(239, 68, 68, 0.35);
-        }
-      </style>
+      <style>${baseStyles()}</style>
     </head>
     <body>
       <div class="wrap">
