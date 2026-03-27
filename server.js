@@ -261,10 +261,12 @@ function baseStyles() {
       border: none;
       cursor: pointer;
       text-decoration: none;
+      transition: transform 0.15s ease, filter 0.15s ease;
     }
 
     .button:hover {
       filter: brightness(1.05);
+      transform: translateY(-1px);
     }
 
     .button.claim {
@@ -278,6 +280,7 @@ function baseStyles() {
     .button.disabled {
       background: linear-gradient(180deg, #475569, #334155);
       cursor: default;
+      transform: none;
     }
 
     .hero {
@@ -328,10 +331,57 @@ function baseStyles() {
     }
 
     .quest {
+      position: relative;
+      overflow: hidden;
       background: rgba(15, 23, 42, 0.72);
       border: 1px solid #273449;
       border-radius: 18px;
       padding: 18px;
+      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .quest:hover {
+      transform: translateY(-2px);
+      border-color: #385075;
+    }
+
+    .quest.done-card {
+      border-color: rgba(34, 197, 94, 0.45);
+      box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.08), 0 8px 30px rgba(34, 197, 94, 0.08);
+    }
+
+    .quest.claimed-card {
+      border-color: rgba(139, 92, 246, 0.45);
+      box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.08), 0 8px 30px rgba(139, 92, 246, 0.08);
+    }
+
+    .quest.animate-complete {
+      animation: questCompletePop 0.6s ease;
+    }
+
+    .quest.animate-claim {
+      animation: questClaimFlash 0.9s ease;
+    }
+
+    .quest::after {
+      content: "";
+      position: absolute;
+      top: -20%;
+      left: -120%;
+      width: 80px;
+      height: 140%;
+      transform: rotate(18deg);
+      background: linear-gradient(
+        90deg,
+        rgba(255,255,255,0) 0%,
+        rgba(255,255,255,0.10) 50%,
+        rgba(255,255,255,0) 100%
+      );
+      pointer-events: none;
+    }
+
+    .quest.animate-claim::after {
+      animation: shineSweep 0.9s ease;
     }
 
     .quest-top {
@@ -504,6 +554,45 @@ function baseStyles() {
       color: white;
     }
 
+    @keyframes questCompletePop {
+      0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 rgba(34, 197, 94, 0);
+      }
+      35% {
+        transform: scale(1.02);
+        box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.10);
+      }
+      100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 rgba(34, 197, 94, 0);
+      }
+    }
+
+    @keyframes questClaimFlash {
+      0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 rgba(139, 92, 246, 0);
+      }
+      30% {
+        transform: scale(1.02);
+        box-shadow: 0 0 0 8px rgba(139, 92, 246, 0.14);
+      }
+      100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 rgba(139, 92, 246, 0);
+      }
+    }
+
+    @keyframes shineSweep {
+      0% {
+        left: -120%;
+      }
+      100% {
+        left: 135%;
+      }
+    }
+
     @media (max-width: 900px) {
       .nav-wrap {
         grid-template-columns: 1fr;
@@ -579,13 +668,13 @@ app.get("/", (req, res) => {
 
         <div class="hero">
           <h1>Night Arena</h1>
-          <p>Demo betting app with daily guest quests, claim rewards and clean navigation.</p>
+          <p>Demo betting app with daily guest quests, claim rewards, animated completions and clean navigation.</p>
         </div>
 
         <div class="card">
           <div class="title" style="font-size:28px;">Welcome</div>
           <div class="subtitle">
-            Main page now has balance in the header and smooth transitions between all core sections.
+            Main page now has balance in the header, toast notifications and quest completion animations.
           </div>
 
           <div class="stats">
@@ -609,7 +698,7 @@ app.get("/", (req, res) => {
           <div class="link-grid">
             <div class="feature">
               <h3>🎯 Daily Guests</h3>
-              <p>Open live quest page with progress and reward claiming.</p>
+              <p>Open live quest page with progress, claim rewards and animations.</p>
               <a class="button" href="/daily-guests">Open Daily Guests</a>
             </div>
 
@@ -852,6 +941,8 @@ app.get("/daily-guests", (req, res) => {
       ${toastScript()}
 
       <script>
+        let previousQuestMap = {};
+
         function iconForQuest(title) {
           const t = String(title || "").toLowerCase();
           if (t.includes("place")) return "🎯";
@@ -865,6 +956,36 @@ app.get("/daily-guests", (req, res) => {
           box.className = "message " + type;
           box.style.display = "block";
           box.textContent = text;
+        }
+
+        function animateQuestStateChanges(quests) {
+          quests.forEach(function(q) {
+            var prev = previousQuestMap[q.id] || {};
+            var el = document.querySelector('[data-quest-id="' + q.id + '"]');
+            if (!el) return;
+
+            if (!prev.done && q.done && !q.claimed) {
+              el.classList.add("animate-complete");
+              setTimeout(function() {
+                el.classList.remove("animate-complete");
+              }, 700);
+            }
+
+            if (!prev.claimed && q.claimed) {
+              el.classList.add("animate-claim");
+              setTimeout(function() {
+                el.classList.remove("animate-claim");
+              }, 1000);
+            }
+          });
+
+          previousQuestMap = {};
+          quests.forEach(function(q) {
+            previousQuestMap[q.id] = {
+              done: q.done,
+              claimed: q.claimed
+            };
+          });
         }
 
         async function claimReward(questId) {
@@ -934,7 +1055,7 @@ app.get("/daily-guests", (req, res) => {
               <div class="title" style="font-size:26px;">Today quests</div>
               <div class="quests">
                 \${data.quests.map((q) => \`
-                  <div class="quest">
+                  <div class="quest \${q.claimed ? "claimed-card" : q.done ? "done-card" : ""}" data-quest-id="\${q.id}">
                     <div class="quest-top">
                       <div class="quest-icon">\${iconForQuest(q.title)}</div>
                       <div class="quest-title">\${q.title}</div>
@@ -963,6 +1084,8 @@ app.get("/daily-guests", (req, res) => {
                 \`).join("")}
               </div>
             \`;
+
+            animateQuestStateChanges(data.quests);
           } catch (error) {
             document.getElementById("statsBox").innerHTML = "<div class='muted'>Server error.</div>";
             document.getElementById("questsBox").innerHTML = "<div class='muted'>Server error.</div>";
