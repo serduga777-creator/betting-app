@@ -12,6 +12,42 @@ const user = {
   balance: 1000
 };
 
+let nextBetId = 3;
+let nextHistoryId = 3;
+
+const availableMatches = [
+  {
+    id: 1,
+    league: "La Liga",
+    match_name: "Real Madrid vs Barcelona",
+    outcomes: [
+      { selection: "Real Madrid win", odds: 2.1 },
+      { selection: "Draw", odds: 3.4 },
+      { selection: "Barcelona win", odds: 2.9 }
+    ]
+  },
+  {
+    id: 2,
+    league: "Premier League",
+    match_name: "Man City vs Liverpool",
+    outcomes: [
+      { selection: "Man City win", odds: 1.9 },
+      { selection: "Draw", odds: 3.6 },
+      { selection: "Liverpool win", odds: 3.1 }
+    ]
+  },
+  {
+    id: 3,
+    league: "Bundesliga",
+    match_name: "Bayern vs Dortmund",
+    outcomes: [
+      { selection: "Bayern win", odds: 1.8 },
+      { selection: "Draw", odds: 3.8 },
+      { selection: "Dortmund win", odds: 4.0 }
+    ]
+  }
+];
+
 const bets = [
   {
     id: 1,
@@ -68,6 +104,17 @@ function isQuestClaimed(questId) {
 
 function claimQuest(questId) {
   claimedGuestRewards.add(questRewardKey(questId));
+}
+
+function pushHistory(type, description, amount, balanceAfter) {
+  balanceHistory.unshift({
+    id: nextHistoryId++,
+    type,
+    description,
+    amount,
+    balance_after: balanceAfter,
+    created_at: new Date().toISOString()
+  });
 }
 
 function getQuestDefinitions() {
@@ -139,6 +186,7 @@ function navHtml(active) {
 
       <div class="nav-links">
         ${item("/", "Home", "home")}
+        ${item("/matches", "Matches", "matches")}
         ${item("/daily-guests", "Daily Guests", "daily-guests")}
         ${item("/history", "History", "history")}
         ${item("/profile", "Me", "me")}
@@ -168,7 +216,7 @@ function baseStyles() {
     }
 
     .wrap {
-      max-width: 980px;
+      max-width: 1100px;
       margin: 0 auto;
     }
 
@@ -277,6 +325,10 @@ function baseStyles() {
       background: linear-gradient(180deg, #475569, #334155);
     }
 
+    .button.red {
+      background: linear-gradient(180deg, #ef4444, #dc2626);
+    }
+
     .button.disabled {
       background: linear-gradient(180deg, #475569, #334155);
       cursor: default;
@@ -323,6 +375,77 @@ function baseStyles() {
     .stat-value {
       font-size: 28px;
       font-weight: 800;
+    }
+
+    .muted {
+      color: #94a3b8;
+    }
+
+    .loading {
+      color: #94a3b8;
+    }
+
+    .message {
+      display: none;
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-weight: bold;
+    }
+
+    .message.success {
+      display: block;
+      background: rgba(34, 197, 94, 0.16);
+      color: #86efac;
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+
+    .message.error {
+      display: block;
+      background: rgba(239, 68, 68, 0.16);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.35);
+    }
+
+    .link-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+
+    .feature {
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid #273449;
+      border-radius: 18px;
+      padding: 18px;
+    }
+
+    .feature h3 {
+      margin-top: 0;
+      font-size: 24px;
+    }
+
+    .feature p {
+      color: #cbd5e1;
+      line-height: 1.5;
+    }
+
+    .history-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .history-item {
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid #273449;
+      border-radius: 16px;
+      padding: 16px;
+    }
+
+    .history-type {
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 8px;
     }
 
     .quests {
@@ -451,77 +574,6 @@ function baseStyles() {
       color: #c4b5fd;
     }
 
-    .muted {
-      color: #94a3b8;
-    }
-
-    .loading {
-      color: #94a3b8;
-    }
-
-    .message {
-      display: none;
-      margin-top: 12px;
-      padding: 12px 14px;
-      border-radius: 12px;
-      font-weight: bold;
-    }
-
-    .message.success {
-      display: block;
-      background: rgba(34, 197, 94, 0.16);
-      color: #86efac;
-      border: 1px solid rgba(34, 197, 94, 0.35);
-    }
-
-    .message.error {
-      display: block;
-      background: rgba(239, 68, 68, 0.16);
-      color: #fca5a5;
-      border: 1px solid rgba(239, 68, 68, 0.35);
-    }
-
-    .link-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 14px;
-    }
-
-    .feature {
-      background: rgba(15, 23, 42, 0.72);
-      border: 1px solid #273449;
-      border-radius: 18px;
-      padding: 18px;
-    }
-
-    .feature h3 {
-      margin-top: 0;
-      font-size: 24px;
-    }
-
-    .feature p {
-      color: #cbd5e1;
-      line-height: 1.5;
-    }
-
-    .history-list {
-      display: grid;
-      gap: 12px;
-    }
-
-    .history-item {
-      background: rgba(15, 23, 42, 0.72);
-      border: 1px solid #273449;
-      border-radius: 16px;
-      padding: 16px;
-    }
-
-    .history-type {
-      font-size: 18px;
-      font-weight: 800;
-      margin-bottom: 8px;
-    }
-
     .toast {
       position: fixed;
       right: 20px;
@@ -554,46 +606,151 @@ function baseStyles() {
       color: white;
     }
 
+    .matches-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 16px;
+    }
+
+    .match-card {
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid #273449;
+      border-radius: 18px;
+      padding: 18px;
+      margin-bottom: 14px;
+    }
+
+    .league-pill {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: rgba(139, 92, 246, 0.16);
+      border: 1px solid rgba(139, 92, 246, 0.35);
+      color: #c4b5fd;
+      font-weight: bold;
+      font-size: 13px;
+    }
+
+    .match-title {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 14px;
+    }
+
+    .odds-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .odds-btn {
+      width: 100%;
+      border: none;
+      border-radius: 14px;
+      padding: 14px 10px;
+      font-weight: bold;
+      color: white;
+      cursor: pointer;
+      background: linear-gradient(180deg, #2563eb, #1d4ed8);
+    }
+
+    .odds-btn:hover {
+      filter: brightness(1.05);
+    }
+
+    .bet-slip {
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid #273449;
+      border-radius: 18px;
+      padding: 18px;
+      position: sticky;
+      top: 20px;
+    }
+
+    .slip-box {
+      background: #0f172a;
+      border: 1px solid #273449;
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .slip-big {
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .input {
+      width: 100%;
+      border: 1px solid #334155;
+      background: #0f172a;
+      color: white;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 16px;
+      margin: 10px 0 12px;
+    }
+
+    .bets-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .bet-item {
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid #273449;
+      border-radius: 16px;
+      padding: 16px;
+    }
+
+    .status-pill {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 7px 11px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+
+    .status-pill.win {
+      background: rgba(34, 197, 94, 0.16);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      color: #86efac;
+    }
+
+    .status-pill.pending {
+      background: rgba(245, 158, 11, 0.16);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: #fbbf24;
+    }
+
+    .status-pill.lose {
+      background: rgba(239, 68, 68, 0.16);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      color: #fca5a5;
+    }
+
     @keyframes questCompletePop {
-      0% {
-        transform: scale(1);
-        box-shadow: 0 0 0 rgba(34, 197, 94, 0);
-      }
-      35% {
-        transform: scale(1.02);
-        box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.10);
-      }
-      100% {
-        transform: scale(1);
-        box-shadow: 0 0 0 rgba(34, 197, 94, 0);
-      }
+      0% { transform: scale(1); box-shadow: 0 0 0 rgba(34, 197, 94, 0); }
+      35% { transform: scale(1.02); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.10); }
+      100% { transform: scale(1); box-shadow: 0 0 0 rgba(34, 197, 94, 0); }
     }
 
     @keyframes questClaimFlash {
-      0% {
-        transform: scale(1);
-        box-shadow: 0 0 0 rgba(139, 92, 246, 0);
-      }
-      30% {
-        transform: scale(1.02);
-        box-shadow: 0 0 0 8px rgba(139, 92, 246, 0.14);
-      }
-      100% {
-        transform: scale(1);
-        box-shadow: 0 0 0 rgba(139, 92, 246, 0);
-      }
+      0% { transform: scale(1); box-shadow: 0 0 0 rgba(139, 92, 246, 0); }
+      30% { transform: scale(1.02); box-shadow: 0 0 0 8px rgba(139, 92, 246, 0.14); }
+      100% { transform: scale(1); box-shadow: 0 0 0 rgba(139, 92, 246, 0); }
     }
 
     @keyframes shineSweep {
-      0% {
-        left: -120%;
-      }
-      100% {
-        left: 135%;
-      }
+      0% { left: -120%; }
+      100% { left: 135%; }
     }
 
-    @media (max-width: 900px) {
+    @media (max-width: 980px) {
       .nav-wrap {
         grid-template-columns: 1fr;
       }
@@ -604,6 +761,14 @@ function baseStyles() {
 
       .nav-right {
         justify-content: flex-start;
+      }
+
+      .matches-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .bet-slip {
+        position: static;
       }
     }
 
@@ -618,6 +783,10 @@ function baseStyles() {
 
       .nav-brand {
         font-size: 20px;
+      }
+
+      .odds-grid {
+        grid-template-columns: 1fr;
       }
     }
   `;
@@ -668,13 +837,13 @@ app.get("/", (req, res) => {
 
         <div class="hero">
           <h1>Night Arena</h1>
-          <p>Demo betting app with daily guest quests, claim rewards, toasts and clean navigation.</p>
+          <p>Demo betting app with live matches, quests, claim rewards, toasts and clean navigation.</p>
         </div>
 
         <div class="card">
           <div class="title" style="font-size:28px;">Welcome</div>
           <div class="subtitle">
-            Stable version without database. Good for continuing UI work safely.
+            Now you can place bets from the site and move quest progress with your own actions.
           </div>
 
           <div class="stats">
@@ -697,9 +866,15 @@ app.get("/", (req, res) => {
           <div class="title" style="font-size:28px;">Navigation</div>
           <div class="link-grid">
             <div class="feature">
+              <h3>⚽ Matches</h3>
+              <p>Choose a market and place a new bet.</p>
+              <a class="button" href="/matches">Open Matches</a>
+            </div>
+
+            <div class="feature">
               <h3>🎯 Daily Guests</h3>
               <p>Open live quest page with progress and claim reward.</p>
-              <a class="button" href="/daily-guests">Open Daily Guests</a>
+              <a class="button gray" href="/daily-guests">Open Daily Guests</a>
             </div>
 
             <div class="feature">
@@ -712,12 +887,6 @@ app.get("/", (req, res) => {
               <h3>👤 Me</h3>
               <p>See user profile card and current demo account state.</p>
               <a class="button gray" href="/profile">Open Me</a>
-            </div>
-
-            <div class="feature">
-              <h3>💚 Health</h3>
-              <p>Simple route to check that the server is alive.</p>
-              <a class="button gray" href="/health">Open Health</a>
             </div>
           </div>
         </div>
@@ -761,6 +930,22 @@ app.get("/profile", (req, res) => {
             <div class="stat">
               <div class="stat-label">Total bets</div>
               <div class="stat-value">${bets.length}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="title" style="font-size:28px;">Quick actions</div>
+          <div class="link-grid">
+            <div class="feature">
+              <h3>⚽ Matches</h3>
+              <p>Go place a new bet.</p>
+              <a class="button" href="/matches">Go to Matches</a>
+            </div>
+            <div class="feature">
+              <h3>🎯 Daily Guests</h3>
+              <p>Go to quests and claim rewards.</p>
+              <a class="button gray" href="/daily-guests">Go to Daily Guests</a>
             </div>
           </div>
         </div>
@@ -816,6 +1001,201 @@ app.get("/history", (req, res) => {
   `);
 });
 
+app.get("/matches", (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Matches</title>
+      <style>${baseStyles()}</style>
+    </head>
+    <body>
+      <div class="wrap">
+        ${navHtml("matches")}
+
+        <div class="card">
+          <div class="title">Matches</div>
+          <div class="subtitle">Choose an outcome and place a bet.</div>
+        </div>
+
+        <div class="matches-grid">
+          <div class="card">
+            <div id="matchesBox">Loading matches...</div>
+          </div>
+
+          <div class="bet-slip">
+            <div class="title" style="font-size:28px;">Bet Slip</div>
+
+            <div class="slip-box">
+              <div class="muted">Current balance</div>
+              <div class="slip-big" id="slipBalance">${user.balance}</div>
+            </div>
+
+            <div id="slipEmpty" class="slip-box">
+              Select any outcome to prepare your bet.
+            </div>
+
+            <div id="slipContent" style="display:none;">
+              <div class="slip-box">
+                <div class="muted">Selected match</div>
+                <div class="slip-big" id="slipMatch">-</div>
+                <div class="muted" id="slipSelection">-</div>
+                <div style="margin-top:8px;"><strong>Odds:</strong> <span id="slipOdds">-</span></div>
+              </div>
+
+              <div class="slip-box">
+                <div class="muted">Stake</div>
+                <input id="stakeInput" class="input" type="number" min="1" step="1" placeholder="Enter stake" />
+                <div><strong>Possible win:</strong> <span id="possibleWin">0</span></div>
+              </div>
+
+              <button class="button" style="width:100%;" onclick="placeBet()">Place Bet</button>
+            </div>
+
+            <div id="matchesMsg" class="message"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="title" style="font-size:28px;">My Bets</div>
+          <div id="betsBox">Loading bets...</div>
+        </div>
+      </div>
+
+      ${toastScript()}
+
+      <script>
+        let selectedBet = null;
+        let matches = [];
+
+        function showPageMessage(text, type) {
+          const box = document.getElementById("matchesMsg");
+          box.className = "message " + type;
+          box.style.display = "block";
+          box.textContent = text;
+        }
+
+        async function loadMatches() {
+          const res = await fetch("/api/matches", { cache: "no-store" });
+          const data = await res.json();
+
+          if (!data.ok) {
+            document.getElementById("matchesBox").innerHTML = "<div class='muted'>Could not load matches.</div>";
+            return;
+          }
+
+          matches = data.matches || [];
+
+          document.getElementById("matchesBox").innerHTML = matches.map(match => \`
+            <div class="match-card">
+              <div class="league-pill">\${match.league}</div>
+              <div class="match-title">\${match.match_name}</div>
+              <div class="odds-grid">
+                \${match.outcomes.map(outcome => \`
+                  <button class="odds-btn" onclick="selectOutcome(\${match.id}, '\${outcome.selection.replace(/'/g, "\\\\'")}', \${outcome.odds})">
+                    \${outcome.selection}<br>\${outcome.odds}
+                  </button>
+                \`).join("")}
+              </div>
+            </div>
+          \`).join("");
+        }
+
+        async function loadMyBets() {
+          const res = await fetch("/my-bets", { cache: "no-store" });
+          const data = await res.json();
+
+          if (!data.ok) {
+            document.getElementById("betsBox").innerHTML = "<div class='muted'>Could not load bets.</div>";
+            return;
+          }
+
+          const bets = data.bets || [];
+
+          document.getElementById("betsBox").innerHTML = bets.length
+            ? '<div class="bets-list">' + bets.map(bet => \`
+                <div class="bet-item">
+                  <div style="font-size:22px; font-weight:800; margin-bottom:6px;">\${bet.match_name}</div>
+                  <div class="muted" style="margin-bottom:8px;">Selection: \${bet.selection}</div>
+                  <div><strong>Stake:</strong> \${bet.stake}</div>
+                  <div><strong>Odds:</strong> \${bet.odds}</div>
+                  <div><strong>Possible win:</strong> \${bet.possible_win}</div>
+                  <div class="status-pill \${String(bet.status).toLowerCase()}">\${bet.status}</div>
+                </div>
+              \`).join("") + '</div>'
+            : "<div class='muted'>No bets yet.</div>";
+        }
+
+        function selectOutcome(matchId, selection, odds) {
+          const match = matches.find(m => m.id === matchId);
+          if (!match) return;
+
+          selectedBet = {
+            match_name: match.match_name,
+            selection,
+            odds
+          };
+
+          document.getElementById("slipEmpty").style.display = "none";
+          document.getElementById("slipContent").style.display = "block";
+          document.getElementById("slipMatch").textContent = selectedBet.match_name;
+          document.getElementById("slipSelection").textContent = selectedBet.selection;
+          document.getElementById("slipOdds").textContent = selectedBet.odds;
+          document.getElementById("stakeInput").value = "";
+          document.getElementById("possibleWin").textContent = "0";
+
+          document.getElementById("stakeInput").oninput = function() {
+            const stake = Number(this.value || 0);
+            document.getElementById("possibleWin").textContent = stake > 0 ? (stake * Number(selectedBet.odds)).toFixed(2) : "0";
+          };
+        }
+
+        async function placeBet() {
+          if (!selectedBet) {
+            showPageMessage("Please select an outcome first", "error");
+            showToast("Select an outcome first", "error");
+            return;
+          }
+
+          const stake = Number(document.getElementById("stakeInput").value || 0);
+
+          const res = await fetch("/api/place-bet", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              match_name: selectedBet.match_name,
+              selection: selectedBet.selection,
+              odds: selectedBet.odds,
+              stake
+            })
+          });
+
+          const data = await res.json();
+
+          if (!data.ok) {
+            showPageMessage(data.message || "Could not place bet", "error");
+            showToast(data.message || "Could not place bet", "error");
+            return;
+          }
+
+          updateAllBalanceTexts(data.balance);
+          document.getElementById("slipBalance").textContent = data.balance;
+          document.getElementById("stakeInput").value = "";
+          document.getElementById("possibleWin").textContent = "0";
+          showPageMessage("Bet placed successfully", "success");
+          showToast("Bet placed", "success");
+          loadMyBets();
+        }
+
+        loadMatches();
+        loadMyBets();
+      </script>
+    </body>
+    </html>
+  `);
+});
+
 app.get("/health", (req, res) => {
   res.send("ok");
 });
@@ -830,7 +1210,7 @@ app.get("/me", (req, res) => {
 app.get("/my-bets", (req, res) => {
   res.json({
     ok: true,
-    bets
+    bets: [...bets].reverse()
   });
 });
 
@@ -838,6 +1218,70 @@ app.get("/balance-history", (req, res) => {
   res.json({
     ok: true,
     history: balanceHistory
+  });
+});
+
+app.get("/api/matches", (req, res) => {
+  res.json({
+    ok: true,
+    matches: availableMatches
+  });
+});
+
+app.post("/api/place-bet", (req, res) => {
+  const { match_name, selection, odds, stake } = req.body;
+
+  const numericOdds = Number(odds);
+  const numericStake = Number(stake);
+
+  if (!match_name || !selection || !numericOdds || !numericStake) {
+    return res.status(400).json({
+      ok: false,
+      message: "Missing bet data"
+    });
+  }
+
+  if (numericStake <= 0) {
+    return res.status(400).json({
+      ok: false,
+      message: "Stake must be greater than 0"
+    });
+  }
+
+  if (numericStake > Number(user.balance)) {
+    return res.status(400).json({
+      ok: false,
+      message: "Not enough balance"
+    });
+  }
+
+  const possibleWin = Number((numericStake * numericOdds).toFixed(2));
+
+  const newBet = {
+    id: nextBetId++,
+    match_name,
+    selection,
+    odds: numericOdds,
+    stake: numericStake,
+    possible_win: possibleWin,
+    status: "pending"
+  };
+
+  bets.push(newBet);
+  user.balance = Number((Number(user.balance) - numericStake).toFixed(2));
+
+  pushHistory(
+    "bet_stake",
+    `Stake for ${match_name} / ${selection}`,
+    -numericStake,
+    user.balance
+  );
+
+  res.json({
+    ok: true,
+    message: "Bet placed",
+    bet: newBet,
+    balance: user.balance
   });
 });
 
@@ -871,16 +1315,14 @@ app.post("/api/daily-guests/claim", (req, res) => {
     });
   }
 
-  user.balance += Number(quest.reward);
+  user.balance = Number((Number(user.balance) + Number(quest.reward)).toFixed(2));
 
-  balanceHistory.unshift({
-    id: balanceHistory.length + 1,
-    type: "daily_guest_reward",
-    description: `Claim reward for: ${quest.title}`,
-    amount: Number(quest.reward),
-    balance_after: user.balance,
-    created_at: new Date().toISOString()
-  });
+  pushHistory(
+    "daily_guest_reward",
+    `Claim reward for: ${quest.title}`,
+    Number(quest.reward),
+    user.balance
+  );
 
   claimQuest(questId);
 
@@ -908,7 +1350,7 @@ app.get("/daily-guests", (req, res) => {
 
         <div class="card">
           <div class="title">Daily Guests</div>
-          <div class="subtitle">Live guest quests based on current bet data.</div>
+          <div class="subtitle">Live guest quests based on your real actions on the site.</div>
           <button class="button" onclick="loadDailyGuests()">Refresh quests</button>
           <div id="messageBox" class="message"></div>
         </div>
