@@ -133,12 +133,21 @@ function navHtml(active) {
 
   return `
     <div class="nav-wrap">
-      <div class="nav-brand">🌙 Night Arena</div>
+      <div class="nav-left">
+        <div class="nav-brand">🌙 Night Arena</div>
+      </div>
+
       <div class="nav-links">
         ${item("/", "Home", "home")}
         ${item("/daily-guests", "Daily Guests", "daily-guests")}
         ${item("/history", "History", "history")}
         ${item("/profile", "Me", "me")}
+      </div>
+
+      <div class="nav-right">
+        <div class="balance-chip">
+          💰 Balance: <span id="navBalance">${user.balance}</span>
+        </div>
       </div>
     </div>
   `;
@@ -164,11 +173,10 @@ function baseStyles() {
     }
 
     .nav-wrap {
-      display: flex;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
       align-items: center;
       gap: 14px;
-      flex-wrap: wrap;
       background: #18233f;
       border: 1px solid #26324d;
       border-radius: 20px;
@@ -176,13 +184,20 @@ function baseStyles() {
       margin-bottom: 16px;
     }
 
+    .nav-left, .nav-right {
+      display: flex;
+      align-items: center;
+    }
+
     .nav-brand {
       font-size: 24px;
       font-weight: 800;
+      white-space: nowrap;
     }
 
     .nav-links {
       display: flex;
+      justify-content: center;
       gap: 10px;
       flex-wrap: wrap;
     }
@@ -202,6 +217,18 @@ function baseStyles() {
       background: linear-gradient(180deg, #3b82f6, #2563eb);
       border-color: transparent;
       color: white;
+    }
+
+    .balance-chip {
+      display: inline-block;
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-weight: bold;
+      font-size: 14px;
+      background: rgba(34, 197, 94, 0.16);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      color: #86efac;
+      white-space: nowrap;
     }
 
     .card {
@@ -445,6 +472,52 @@ function baseStyles() {
       margin-bottom: 8px;
     }
 
+    .toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      min-width: 220px;
+      max-width: 360px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      font-weight: bold;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      transform: translateY(20px);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s ease;
+      z-index: 9999;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast.success {
+      background: rgba(34, 197, 94, 0.95);
+      color: white;
+    }
+
+    .toast.error {
+      background: rgba(239, 68, 68, 0.95);
+      color: white;
+    }
+
+    @media (max-width: 900px) {
+      .nav-wrap {
+        grid-template-columns: 1fr;
+      }
+
+      .nav-links {
+        justify-content: flex-start;
+      }
+
+      .nav-right {
+        justify-content: flex-start;
+      }
+    }
+
     @media (max-width: 700px) {
       .title {
         font-size: 32px;
@@ -458,6 +531,36 @@ function baseStyles() {
         font-size: 20px;
       }
     }
+  `;
+}
+
+function toastScript() {
+  return `
+    <div id="toast" class="toast"></div>
+    <script>
+      function updateAllBalanceTexts(value) {
+        document.querySelectorAll("#navBalance").forEach(function(el) {
+          el.textContent = value;
+        });
+      }
+
+      function showToast(text, type) {
+        var toast = document.getElementById("toast");
+        if (!toast) return;
+
+        toast.className = "toast " + type;
+        toast.textContent = text;
+
+        requestAnimationFrame(function() {
+          toast.classList.add("show");
+        });
+
+        clearTimeout(window.__toastTimer);
+        window.__toastTimer = setTimeout(function() {
+          toast.classList.remove("show");
+        }, 2200);
+      }
+    </script>
   `;
 }
 
@@ -482,7 +585,7 @@ app.get("/", (req, res) => {
         <div class="card">
           <div class="title" style="font-size:28px;">Welcome</div>
           <div class="subtitle">
-            Main page now has a real navigation menu and transitions between all core sections.
+            Main page now has balance in the header and smooth transitions between all core sections.
           </div>
 
           <div class="stats">
@@ -530,6 +633,7 @@ app.get("/", (req, res) => {
           </div>
         </div>
       </div>
+      ${toastScript()}
     </body>
     </html>
   `);
@@ -588,6 +692,7 @@ app.get("/profile", (req, res) => {
           </div>
         </div>
       </div>
+      ${toastScript()}
     </body>
     </html>
   `);
@@ -632,6 +737,7 @@ app.get("/history", (req, res) => {
           </div>
         </div>
       </div>
+      ${toastScript()}
     </body>
     </html>
   `);
@@ -743,6 +849,8 @@ app.get("/daily-guests", (req, res) => {
         </div>
       </div>
 
+      ${toastScript()}
+
       <script>
         function iconForQuest(title) {
           const t = String(title || "").toLowerCase();
@@ -773,13 +881,17 @@ app.get("/daily-guests", (req, res) => {
 
             if (!data.ok) {
               showMessage(data.message || "Could not claim reward", "error");
+              showToast(data.message || "Could not claim reward", "error");
               return;
             }
 
+            updateAllBalanceTexts(data.balance);
             showMessage("Reward claimed: +" + data.reward + ". New balance: " + data.balance, "success");
+            showToast("+" + data.reward + " claimed", "success");
             loadDailyGuests();
           } catch (error) {
             showMessage("Server error while claiming reward", "error");
+            showToast("Server error", "error");
           }
         }
 
@@ -793,6 +905,8 @@ app.get("/daily-guests", (req, res) => {
               document.getElementById("questsBox").innerHTML = "<div class='muted'>Could not load quests.</div>";
               return;
             }
+
+            updateAllBalanceTexts(data.user.balance);
 
             document.getElementById("statsBox").innerHTML = \`
               <div class="title" style="font-size:26px;">Today stats</div>
