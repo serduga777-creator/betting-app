@@ -6,59 +6,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-/* HEALTH */
 app.get("/health", (req, res) => {
   res.send("ok");
 });
 
-/* USER */
-app.get("/me", (req, res) => {
-  res.json({
-    ok: true,
-    user: {
-      id: 1,
-      email: "demo@test.com",
-      balance: 1000
-    }
-  });
-});
-
-/* BETS */
-app.get("/my-bets", (req, res) => {
-  res.json({
-    ok: true,
-    bets: [
-      {
-        id: 1,
-        match_name: "Real Madrid vs Barcelona",
-        selection: "Real Madrid win",
-        odds: 2.1,
-        stake: 10,
-        possible_win: 21,
-        status: "win"
-      }
-    ]
-  });
-});
-
-/* BALANCE HISTORY */
-app.get("/balance-history", (req, res) => {
-  res.json({
-    ok: true,
-    history: [
-      {
-        id: 1,
-        type: "bet_win",
-        description: "Win payout",
-        amount: 21,
-        balance_after: 1021,
-        created_at: new Date()
-      }
-    ]
-  });
-});
-
-/* DAILY QUESTS */
 app.get("/api/daily-guests", (req, res) => {
   res.json({
     ok: true,
@@ -96,9 +47,7 @@ app.get("/daily-guests", (req, res) => {
       <title>Daily Guests</title>
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <style>
-        * {
-          box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
         body {
           margin: 0;
@@ -255,8 +204,7 @@ app.get("/daily-guests", (req, res) => {
         <div class="hero">
           <h1>Daily Guests</h1>
           <p>
-            Complete simple guest missions, earn rewards, and turn the raw JSON
-            into a real game-style page.
+            Complete simple guest missions and earn rewards.
           </p>
         </div>
 
@@ -273,9 +221,10 @@ app.get("/daily-guests", (req, res) => {
 
       <script>
         function questIcon(title) {
-          if (title.toLowerCase().includes("place")) return "🎯";
-          if (title.toLowerCase().includes("win")) return "🏆";
-          if (title.toLowerCase().includes("stake")) return "💰";
+          const t = String(title || "").toLowerCase();
+          if (t.includes("place")) return "🎯";
+          if (t.includes("win")) return "🏆";
+          if (t.includes("stake")) return "💰";
           return "⭐";
         }
 
@@ -320,7 +269,6 @@ app.get("/daily-guests", (req, res) => {
   `);
 });
 
-/* START SERVER */
 const port = process.env.PORT || 3000;
 
 app.listen(port, "0.0.0.0", () => {
