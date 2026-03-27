@@ -52,18 +52,30 @@ const balanceHistory = [
   }
 ];
 
+const claimedGuestRewards = new Set();
+
 function normalizeStatus(status) {
   return String(status || "").trim().toLowerCase();
 }
 
-function getDailyGuestData() {
+function questRewardKey(questId) {
+  return `user:${user.id}:quest:${questId}`;
+}
+
+function isQuestClaimed(questId) {
+  return claimedGuestRewards.has(questRewardKey(questId));
+}
+
+function claimQuest(questId) {
+  claimedGuestRewards.add(questRewardKey(questId));
+}
+
+function getQuestDefinitions() {
   const totalBets = bets.length;
   const totalWins = bets.filter((bet) => normalizeStatus(bet.status) === "win").length;
   const totalStake = bets.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
 
   return {
-    ok: true,
-    user,
     stats: {
       totalBets,
       totalWins,
@@ -98,6 +110,21 @@ function getDailyGuestData() {
   };
 }
 
+function getDailyGuestData() {
+  const data = getQuestDefinitions();
+
+  return {
+    ok: true,
+    user,
+    stats: data.stats,
+    quests: data.quests.map((quest) => ({
+      ...quest,
+      claimed: isQuestClaimed(quest.id),
+      canClaim: quest.done && !isQuestClaimed(quest.id)
+    }))
+  };
+}
+
 app.get("/", (req, res) => {
   res.send("HOME OK");
 });
@@ -129,6 +156,54 @@ app.get("/balance-history", (req, res) => {
 
 app.get("/api/daily-guests", (req, res) => {
   res.json(getDailyGuestData());
+});
+
+app.post("/api/daily-guests/claim", (req, res) => {
+  const questId = Number(req.body.questId || 0);
+  const data = getQuestDefinitions();
+  const quest = data.quests.find((item) => item.id === questId);
+
+  if (!quest) {
+    return res.status(404).json({
+      ok: false,
+      message: "Quest not found"
+    });
+  }
+
+  if (!quest.done) {
+    return res.status(400).json({
+      ok: false,
+      message: "Quest is not completed yet"
+    });
+  }
+
+  if (isQuestClaimed(questId)) {
+    return res.status(400).json({
+      ok: false,
+      message: "Reward already claimed"
+    });
+  }
+
+  user.balance += Number(quest.reward);
+
+  balanceHistory.unshift({
+    id: balanceHistory.length + 1,
+    type: "daily_guest_reward",
+    description: `Claim reward for: ${quest.title}`,
+    amount: Number(quest.reward),
+    balance_after: user.balance,
+    created_at: new Date().toISOString()
+  });
+
+  claimQuest(questId);
+
+  return res.json({
+    ok: true,
+    message: "Reward claimed",
+    reward: quest.reward,
+    balance: user.balance,
+    questId
+  });
 });
 
 app.get("/daily-guests", (req, res) => {
@@ -185,6 +260,19 @@ app.get("/daily-guests", (req, res) => {
           background: linear-gradient(180deg, #3b82f6, #2563eb);
           border: none;
           cursor: pointer;
+        }
+
+        .button:hover {
+          filter: brightness(1.05);
+        }
+
+        .button.claim {
+          background: linear-gradient(180deg, #22c55e, #16a34a);
+        }
+
+        .button.disabled {
+          background: linear-gradient(180deg, #475569, #334155);
+          cursor: default;
         }
 
         .stats {
@@ -249,6 +337,7 @@ app.get("/daily-guests", (req, res) => {
           display: flex;
           flex-wrap: wrap;
           gap: 10px;
+          align-items: center;
         }
 
         .pill {
@@ -283,12 +372,40 @@ app.get("/daily-guests", (req, res) => {
           color: #fbbf24;
         }
 
+        .claimed {
+          background: rgba(139, 92, 246, 0.16);
+          border: 1px solid rgba(139, 92, 246, 0.35);
+          color: #c4b5fd;
+        }
+
         .muted {
           color: #94a3b8;
         }
 
         .loading {
           color: #94a3b8;
+        }
+
+        .message {
+          display: none;
+          margin-top: 12px;
+          padding: 12px 14px;
+          border-radius: 12px;
+          font-weight: bold;
+        }
+
+        .message.success {
+          display: block;
+          background: rgba(34, 197, 94, 0.16);
+          color: #86efac;
+          border: 1px solid rgba(34, 197, 94, 0.35);
+        }
+
+        .message.error {
+          display: block;
+          background: rgba(239, 68, 68, 0.16);
+          color: #fca5a5;
+          border: 1px solid rgba(239, 68, 68, 0.35);
         }
       </style>
     </head>
@@ -298,6 +415,7 @@ app.get("/daily-guests", (req, res) => {
           <div class="title">Daily Guests</div>
           <div class="subtitle">Live guest quests based on current bet data.</div>
           <button class="button" onclick="loadDailyGuests()">Refresh quests</button>
+          <div id="messageBox" class="message"></div>
         </div>
 
         <div id="statsBox" class="card">
@@ -318,6 +436,37 @@ app.get("/daily-guests", (req, res) => {
           return "⭐";
         }
 
+        function showMessage(text, type) {
+          const box = document.getElementById("messageBox");
+          box.className = "message " + type;
+          box.style.display = "block";
+          box.textContent = text;
+        }
+
+        async function claimReward(questId) {
+          try {
+            const res = await fetch("/api/daily-guests/claim", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({ questId })
+            });
+
+            const data = await res.json();
+
+            if (!data.ok) {
+              showMessage(data.message || "Could not claim reward", "error");
+              return;
+            }
+
+            showMessage("Reward claimed: +" + data.reward + ". New balance: " + data.balance, "success");
+            loadDailyGuests();
+          } catch (error) {
+            showMessage("Server error while claiming reward", "error");
+          }
+        }
+
         async function loadDailyGuests() {
           try {
             const res = await fetch("/api/daily-guests", { cache: "no-store" });
@@ -332,6 +481,10 @@ app.get("/daily-guests", (req, res) => {
             document.getElementById("statsBox").innerHTML = \`
               <div class="title" style="font-size:26px;">Today stats</div>
               <div class="stats">
+                <div class="stat">
+                  <div class="stat-label">Balance</div>
+                  <div class="stat-value">\${data.user.balance}</div>
+                </div>
                 <div class="stat">
                   <div class="stat-label">Total bets</div>
                   <div class="stat-value">\${data.stats.totalBets}</div>
@@ -362,9 +515,19 @@ app.get("/daily-guests", (req, res) => {
                     <div class="quest-row">
                       <span class="pill reward">Reward: +\${q.reward}</span>
                       <span class="pill progress">Progress: \${q.progress}</span>
-                      \${q.done
-                        ? '<span class="pill done">DONE</span>'
-                        : '<span class="pill todo">IN PROGRESS</span>'}
+                      \${q.claimed
+                        ? '<span class="pill claimed">CLAIMED</span>'
+                        : q.done
+                          ? '<span class="pill done">DONE</span>'
+                          : '<span class="pill todo">IN PROGRESS</span>'}
+                    </div>
+
+                    <div style="margin-top:14px;">
+                      \${q.canClaim
+                        ? '<button class="button claim" onclick="claimReward(' + q.id + ')">Claim reward</button>'
+                        : q.claimed
+                          ? '<button class="button disabled" disabled>Reward claimed</button>'
+                          : '<button class="button disabled" disabled>Complete quest first</button>'}
                     </div>
                   </div>
                 \`).join("")}
