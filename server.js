@@ -733,6 +733,13 @@ function baseStyles() {
       color: #fca5a5;
     }
 
+    .settle-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
     @keyframes questCompletePop {
       0% { transform: scale(1); box-shadow: 0 0 0 rgba(34, 197, 94, 0); }
       35% { transform: scale(1.02); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.10); }
@@ -837,13 +844,13 @@ app.get("/", (req, res) => {
 
         <div class="hero">
           <h1>Night Arena</h1>
-          <p>Demo betting app with live matches, quests, claim rewards, toasts and clean navigation.</p>
+          <p>Demo betting app with live matches, manual settlement, quests and reward claim.</p>
         </div>
 
         <div class="card">
           <div class="title" style="font-size:28px;">Welcome</div>
           <div class="subtitle">
-            Now you can place bets from the site and move quest progress with your own actions.
+            Now you can place bets and manually settle them as WIN or LOSE.
           </div>
 
           <div class="stats">
@@ -867,25 +874,25 @@ app.get("/", (req, res) => {
           <div class="link-grid">
             <div class="feature">
               <h3>⚽ Matches</h3>
-              <p>Choose a market and place a new bet.</p>
+              <p>Place new bets and settle pending bets.</p>
               <a class="button" href="/matches">Open Matches</a>
             </div>
 
             <div class="feature">
               <h3>🎯 Daily Guests</h3>
-              <p>Open live quest page with progress and claim reward.</p>
+              <p>Track quest progress and claim rewards.</p>
               <a class="button gray" href="/daily-guests">Open Daily Guests</a>
             </div>
 
             <div class="feature">
               <h3>📜 History</h3>
-              <p>See balance history and claimed guest rewards.</p>
+              <p>See all balance changes and payouts.</p>
               <a class="button gray" href="/history">Open History</a>
             </div>
 
             <div class="feature">
               <h3>👤 Me</h3>
-              <p>See user profile card and current demo account state.</p>
+              <p>Open your demo profile.</p>
               <a class="button gray" href="/profile">Open Me</a>
             </div>
           </div>
@@ -930,22 +937,6 @@ app.get("/profile", (req, res) => {
             <div class="stat">
               <div class="stat-label">Total bets</div>
               <div class="stat-value">${bets.length}</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="title" style="font-size:28px;">Quick actions</div>
-          <div class="link-grid">
-            <div class="feature">
-              <h3>⚽ Matches</h3>
-              <p>Go place a new bet.</p>
-              <a class="button" href="/matches">Go to Matches</a>
-            </div>
-            <div class="feature">
-              <h3>🎯 Daily Guests</h3>
-              <p>Go to quests and claim rewards.</p>
-              <a class="button gray" href="/daily-guests">Go to Daily Guests</a>
             </div>
           </div>
         </div>
@@ -1016,12 +1007,19 @@ app.get("/matches", (req, res) => {
 
         <div class="card">
           <div class="title">Matches</div>
-          <div class="subtitle">Choose an outcome and place a bet.</div>
+          <div class="subtitle">Choose an outcome, place a bet, then settle pending bets as WIN or LOSE.</div>
         </div>
 
         <div class="matches-grid">
-          <div class="card">
-            <div id="matchesBox">Loading matches...</div>
+          <div>
+            <div class="card">
+              <div id="matchesBox">Loading matches...</div>
+            </div>
+
+            <div class="card">
+              <div class="title" style="font-size:28px;">My Bets</div>
+              <div id="betsBox">Loading bets...</div>
+            </div>
           </div>
 
           <div class="bet-slip">
@@ -1055,11 +1053,6 @@ app.get("/matches", (req, res) => {
 
             <div id="matchesMsg" class="message"></div>
           </div>
-        </div>
-
-        <div class="card">
-          <div class="title" style="font-size:28px;">My Bets</div>
-          <div id="betsBox">Loading bets...</div>
         </div>
       </div>
 
@@ -1122,6 +1115,13 @@ app.get("/matches", (req, res) => {
                   <div><strong>Odds:</strong> \${bet.odds}</div>
                   <div><strong>Possible win:</strong> \${bet.possible_win}</div>
                   <div class="status-pill \${String(bet.status).toLowerCase()}">\${bet.status}</div>
+
+                  \${String(bet.status).toLowerCase() === "pending" ? \`
+                    <div class="settle-actions">
+                      <button class="button claim" onclick="settleBet(\${bet.id}, 'win')">WIN</button>
+                      <button class="button red" onclick="settleBet(\${bet.id}, 'lose')">LOSE</button>
+                    </div>
+                  \` : ""}
                 </div>
               \`).join("") + '</div>'
             : "<div class='muted'>No bets yet.</div>";
@@ -1185,6 +1185,28 @@ app.get("/matches", (req, res) => {
           document.getElementById("possibleWin").textContent = "0";
           showPageMessage("Bet placed successfully", "success");
           showToast("Bet placed", "success");
+          loadMyBets();
+        }
+
+        async function settleBet(betId, result) {
+          const res = await fetch("/api/settle-bet", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ betId, result })
+          });
+
+          const data = await res.json();
+
+          if (!data.ok) {
+            showPageMessage(data.message || "Could not settle bet", "error");
+            showToast(data.message || "Could not settle bet", "error");
+            return;
+          }
+
+          updateAllBalanceTexts(data.balance);
+          document.getElementById("slipBalance").textContent = data.balance;
+          showPageMessage("Bet settled: " + String(result).toUpperCase(), "success");
+          showToast("Bet settled: " + String(result).toUpperCase(), "success");
           loadMyBets();
         }
 
@@ -1281,6 +1303,63 @@ app.post("/api/place-bet", (req, res) => {
     ok: true,
     message: "Bet placed",
     bet: newBet,
+    balance: user.balance
+  });
+});
+
+app.post("/api/settle-bet", (req, res) => {
+  const betId = Number(req.body.betId || 0);
+  const result = String(req.body.result || "").toLowerCase();
+
+  const bet = bets.find((item) => item.id === betId);
+
+  if (!bet) {
+    return res.status(404).json({
+      ok: false,
+      message: "Bet not found"
+    });
+  }
+
+  if (normalizeStatus(bet.status) !== "pending") {
+    return res.status(400).json({
+      ok: false,
+      message: "Bet is already settled"
+    });
+  }
+
+  if (result !== "win" && result !== "lose") {
+    return res.status(400).json({
+      ok: false,
+      message: "Invalid result"
+    });
+  }
+
+  bet.status = result;
+
+  if (result === "win") {
+    user.balance = Number((Number(user.balance) + Number(bet.possible_win)).toFixed(2));
+
+    pushHistory(
+      "bet_win",
+      `Win payout for ${bet.match_name} / ${bet.selection}`,
+      Number(bet.possible_win),
+      user.balance
+    );
+  }
+
+  if (result === "lose") {
+    pushHistory(
+      "bet_lose",
+      `Lose settle for ${bet.match_name} / ${bet.selection}`,
+      0,
+      user.balance
+    );
+  }
+
+  return res.json({
+    ok: true,
+    message: "Bet settled",
+    bet,
     balance: user.balance
   });
 });
