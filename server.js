@@ -117,16 +117,30 @@ function pushHistory(type, description, amount, balanceAfter) {
   });
 }
 
-function getQuestDefinitions() {
+function getStats() {
   const totalBets = bets.length;
   const totalWins = bets.filter((bet) => normalizeStatus(bet.status) === "win").length;
+  const totalLoses = bets.filter((bet) => normalizeStatus(bet.status) === "lose").length;
+  const totalPending = bets.filter((bet) => normalizeStatus(bet.status) === "pending").length;
   const totalStake = bets.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
 
   return {
+    totalBets,
+    totalWins,
+    totalLoses,
+    totalPending,
+    totalStake
+  };
+}
+
+function getQuestDefinitions() {
+  const stats = getStats();
+
+  return {
     stats: {
-      totalBets,
-      totalWins,
-      totalStake
+      totalBets: stats.totalBets,
+      totalWins: stats.totalWins,
+      totalStake: stats.totalStake
     },
     quests: [
       {
@@ -134,24 +148,24 @@ function getQuestDefinitions() {
         title: "Place 1 bet",
         description: "Make your first bet today.",
         reward: 5,
-        done: totalBets >= 1,
-        progress: `${Math.min(totalBets, 1)}/1`
+        done: stats.totalBets >= 1,
+        progress: `${Math.min(stats.totalBets, 1)}/1`
       },
       {
         id: 2,
         title: "Win 1 bet",
         description: "Get one winning bet.",
         reward: 10,
-        done: totalWins >= 1,
-        progress: `${Math.min(totalWins, 1)}/1`
+        done: stats.totalWins >= 1,
+        progress: `${Math.min(stats.totalWins, 1)}/1`
       },
       {
         id: 3,
         title: "Stake 20 total",
         description: "Reach total stake of 20.",
         reward: 15,
-        done: totalStake >= 20,
-        progress: `${Math.min(totalStake, 20)}/20`
+        done: stats.totalStake >= 20,
+        progress: `${Math.min(stats.totalStake, 20)}/20`
       }
     ]
   };
@@ -186,6 +200,7 @@ function navHtml(active) {
 
       <div class="nav-links">
         ${item("/", "Home", "home")}
+        ${item("/dashboard", "Dashboard", "dashboard")}
         ${item("/matches", "Matches", "matches")}
         ${item("/daily-guests", "Daily Guests", "daily-guests")}
         ${item("/history", "History", "history")}
@@ -216,7 +231,7 @@ function baseStyles() {
     }
 
     .wrap {
-      max-width: 1100px;
+      max-width: 1120px;
       margin: 0 auto;
     }
 
@@ -740,6 +755,16 @@ function baseStyles() {
       margin-top: 12px;
     }
 
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .dashboard-full {
+      grid-column: 1 / -1;
+    }
+
     @keyframes questCompletePop {
       0% { transform: scale(1); box-shadow: 0 0 0 rgba(34, 197, 94, 0); }
       35% { transform: scale(1.02); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.10); }
@@ -770,7 +795,8 @@ function baseStyles() {
         justify-content: flex-start;
       }
 
-      .matches-grid {
+      .matches-grid,
+      .dashboard-grid {
         grid-template-columns: 1fr;
       }
 
@@ -844,13 +870,13 @@ app.get("/", (req, res) => {
 
         <div class="hero">
           <h1>Night Arena</h1>
-          <p>Demo betting app with live matches, manual settlement, quests and reward claim.</p>
+          <p>Demo betting app with dashboard, live matches, manual settlement, quests and reward claim.</p>
         </div>
 
         <div class="card">
           <div class="title" style="font-size:28px;">Welcome</div>
           <div class="subtitle">
-            Now you can place bets and manually settle them as WIN or LOSE.
+            Теперь у тебя есть отдельный Dashboard со сводкой по всему сайту.
           </div>
 
           <div class="stats">
@@ -873,9 +899,15 @@ app.get("/", (req, res) => {
           <div class="title" style="font-size:28px;">Navigation</div>
           <div class="link-grid">
             <div class="feature">
+              <h3>📊 Dashboard</h3>
+              <p>Open the full project overview page.</p>
+              <a class="button" href="/dashboard">Open Dashboard</a>
+            </div>
+
+            <div class="feature">
               <h3>⚽ Matches</h3>
               <p>Place new bets and settle pending bets.</p>
-              <a class="button" href="/matches">Open Matches</a>
+              <a class="button gray" href="/matches">Open Matches</a>
             </div>
 
             <div class="feature">
@@ -889,16 +921,200 @@ app.get("/", (req, res) => {
               <p>See all balance changes and payouts.</p>
               <a class="button gray" href="/history">Open History</a>
             </div>
-
-            <div class="feature">
-              <h3>👤 Me</h3>
-              <p>Open your demo profile.</p>
-              <a class="button gray" href="/profile">Open Me</a>
-            </div>
           </div>
         </div>
       </div>
       ${toastScript()}
+    </body>
+    </html>
+  `);
+});
+
+app.get("/dashboard", (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Dashboard</title>
+      <style>${baseStyles()}</style>
+    </head>
+    <body>
+      <div class="wrap">
+        ${navHtml("dashboard")}
+
+        <div class="card">
+          <div class="title">Dashboard</div>
+          <div class="subtitle">Balance, quest progress, recent bets and quick actions in one place.</div>
+        </div>
+
+        <div id="dashboardRoot" class="dashboard-grid">
+          <div class="card dashboard-full">
+            <div class="loading">Loading dashboard...</div>
+          </div>
+        </div>
+      </div>
+
+      ${toastScript()}
+
+      <script>
+        function questIcon(title) {
+          const t = String(title || "").toLowerCase();
+          if (t.includes("place")) return "🎯";
+          if (t.includes("win")) return "🏆";
+          if (t.includes("stake")) return "💰";
+          return "⭐";
+        }
+
+        async function loadDashboard() {
+          try {
+            const [meRes, betsRes, guestsRes] = await Promise.all([
+              fetch("/me", { cache: "no-store" }),
+              fetch("/my-bets", { cache: "no-store" }),
+              fetch("/api/daily-guests", { cache: "no-store" })
+            ]);
+
+            const meData = await meRes.json();
+            const betsData = await betsRes.json();
+            const guestsData = await guestsRes.json();
+
+            if (!meData.ok || !betsData.ok || !guestsData.ok) {
+              document.getElementById("dashboardRoot").innerHTML = '<div class="card dashboard-full"><div class="muted">Could not load dashboard.</div></div>';
+              return;
+            }
+
+            updateAllBalanceTexts(meData.user.balance);
+
+            const recentBets = (betsData.bets || []).slice(0, 5);
+            const quests = guestsData.quests || [];
+            const completedQuests = quests.filter(q => q.done).length;
+            const claimedQuests = quests.filter(q => q.claimed).length;
+
+            const wins = (betsData.bets || []).filter(b => String(b.status).toLowerCase() === "win").length;
+            const loses = (betsData.bets || []).filter(b => String(b.status).toLowerCase() === "lose").length;
+            const pending = (betsData.bets || []).filter(b => String(b.status).toLowerCase() === "pending").length;
+            const totalStake = (betsData.bets || []).reduce((sum, b) => sum + Number(b.stake || 0), 0);
+
+            document.getElementById("dashboardRoot").innerHTML = \`
+              <div class="card dashboard-full">
+                <div class="hero" style="margin-bottom:0;">
+                  <h1 style="font-size:32px;">Welcome back, \${meData.user.email}</h1>
+                  <p>Your current balance, quests and recent actions are all here.</p>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="title" style="font-size:26px;">Balance & Stats</div>
+                <div class="stats">
+                  <div class="stat">
+                    <div class="stat-label">Balance</div>
+                    <div class="stat-value">\${meData.user.balance}</div>
+                  </div>
+                  <div class="stat">
+                    <div class="stat-label">Total bets</div>
+                    <div class="stat-value">\${betsData.bets.length}</div>
+                  </div>
+                  <div class="stat">
+                    <div class="stat-label">Wins</div>
+                    <div class="stat-value">\${wins}</div>
+                  </div>
+                  <div class="stat">
+                    <div class="stat-label">Pending</div>
+                    <div class="stat-value">\${pending}</div>
+                  </div>
+                  <div class="stat">
+                    <div class="stat-label">Loses</div>
+                    <div class="stat-value">\${loses}</div>
+                  </div>
+                  <div class="stat">
+                    <div class="stat-label">Stake total</div>
+                    <div class="stat-value">\${totalStake}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="title" style="font-size:26px;">Quest Progress</div>
+                <div class="stats">
+                  <div class="stat">
+                    <div class="stat-label">Completed</div>
+                    <div class="stat-value">\${completedQuests}</div>
+                  </div>
+                  <div class="stat">
+                    <div class="stat-label">Claimed</div>
+                    <div class="stat-value">\${claimedQuests}</div>
+                  </div>
+                </div>
+
+                <div class="quests" style="margin-top:16px;">
+                  \${quests.map(q => \`
+                    <div class="quest \${q.claimed ? "claimed-card" : q.done ? "done-card" : ""}">
+                      <div class="quest-top">
+                        <div class="quest-icon">\${questIcon(q.title)}</div>
+                        <div class="quest-title">\${q.title}</div>
+                      </div>
+                      <div class="quest-desc">\${q.description}</div>
+                      <div class="quest-row">
+                        <span class="pill reward">Reward: +\${q.reward}</span>
+                        <span class="pill progress">Progress: \${q.progress}</span>
+                        \${q.claimed
+                          ? '<span class="pill claimed">CLAIMED</span>'
+                          : q.done
+                            ? '<span class="pill done">DONE</span>'
+                            : '<span class="pill todo">IN PROGRESS</span>'}
+                      </div>
+                    </div>
+                  \`).join("")}
+                </div>
+              </div>
+
+              <div class="card dashboard-full">
+                <div class="title" style="font-size:26px;">Recent Bets</div>
+                \${recentBets.length ? '<div class="bets-list">' + recentBets.map(bet => \`
+                  <div class="bet-item">
+                    <div style="font-size:22px; font-weight:800; margin-bottom:6px;">\${bet.match_name}</div>
+                    <div class="muted" style="margin-bottom:8px;">Selection: \${bet.selection}</div>
+                    <div><strong>Stake:</strong> \${bet.stake}</div>
+                    <div><strong>Odds:</strong> \${bet.odds}</div>
+                    <div><strong>Possible win:</strong> \${bet.possible_win}</div>
+                    <div class="status-pill \${String(bet.status).toLowerCase()}">\${bet.status}</div>
+                  </div>
+                \`).join("") + '</div>' : '<div class="muted">No bets yet.</div>'}
+              </div>
+
+              <div class="card dashboard-full">
+                <div class="title" style="font-size:26px;">Quick Actions</div>
+                <div class="link-grid">
+                  <div class="feature">
+                    <h3>⚽ Matches</h3>
+                    <p>Place a new bet or settle existing bets.</p>
+                    <a class="button" href="/matches">Go to Matches</a>
+                  </div>
+                  <div class="feature">
+                    <h3>🎯 Daily Guests</h3>
+                    <p>Claim rewards for completed quests.</p>
+                    <a class="button gray" href="/daily-guests">Go to Daily Guests</a>
+                  </div>
+                  <div class="feature">
+                    <h3>📜 History</h3>
+                    <p>See payouts, stakes and reward claims.</p>
+                    <a class="button gray" href="/history">Go to History</a>
+                  </div>
+                  <div class="feature">
+                    <h3>👤 Me</h3>
+                    <p>Open your profile view.</p>
+                    <a class="button gray" href="/profile">Go to Me</a>
+                  </div>
+                </div>
+              </div>
+            \`;
+          } catch (e) {
+            document.getElementById("dashboardRoot").innerHTML = '<div class="card dashboard-full"><div class="muted">Server error while loading dashboard.</div></div>';
+          }
+        }
+
+        loadDashboard();
+      </script>
     </body>
     </html>
   `);
